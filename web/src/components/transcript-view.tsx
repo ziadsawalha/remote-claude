@@ -360,6 +360,36 @@ function DiffView({ patches, filePath }: { patches: Array<{ oldStart: number; li
   )
 }
 
+// Syntax-highlighted shell command block
+function ShellCommand({ command }: { command: string }) {
+  const [html, setHtml] = useSyntaxState<string | null>(null)
+
+  useEffect(() => {
+    getHighlighter()
+      .then(highlighter => {
+        try {
+          const tokens = highlighter.codeToTokens(command, { lang: 'shellscript', theme: 'tokyo-night' })
+          const highlighted = tokens.tokens
+            .map((lineTokens: any[]) =>
+              lineTokens.map((t: any) => `<span style="color:${t.color}">${escapeHtml(t.content)}</span>`).join(''),
+            )
+            .join('\n')
+          setHtml(highlighted)
+        } catch {
+          // Fall back to plain
+        }
+      })
+      .catch(() => {})
+  }, [command])
+
+  return (
+    <pre className="text-[10px] bg-black/30 p-2 overflow-auto whitespace-pre-wrap font-mono border-l-2 border-green-500/40">
+      <span className="text-green-500/60 select-none">$ </span>
+      {html ? <code dangerouslySetInnerHTML={{ __html: html }} /> : <span className="text-foreground/80">{command}</span>}
+    </pre>
+  )
+}
+
 // Syntax-highlighted preview for Write operations
 function WritePreview({ content, filePath }: { content: string; filePath?: string }) {
   const [html, setHtml] = useSyntaxState<string | null>(null)
@@ -471,6 +501,7 @@ function ToolLine({
   const name = tool.name || 'Tool'
   const input = tool.input || {}
   const style = getToolStyle(name)
+  const expandAll = useSessionsStore(state => state.expandAll)
 
   // Build one-line summary based on tool type
   let summary = ''
@@ -481,13 +512,19 @@ function ToolLine({
   switch (name) {
     case 'Bash': {
       const cmd = input.command as string
-      summary = cmd?.length > 80 ? `${cmd.slice(0, 80)}...` : cmd
+      summary = cmd?.length > 80 && !expandAll ? `${cmd.slice(0, 80)}...` : cmd
       if (result) {
+        const outputText = expandAll ? result : truncate(result, 1500)
         details = (
-          <pre className="text-[10px] bg-black/30 p-2 max-h-32 overflow-auto whitespace-pre-wrap font-mono">
-            <AnsiText text={truncate(result, 1500)} />
-          </pre>
+          <div className="space-y-1">
+            {expandAll && cmd && <ShellCommand command={cmd} />}
+            <pre className={cn('text-[10px] bg-black/30 p-2 overflow-auto whitespace-pre-wrap font-mono', expandAll ? 'max-h-[80vh]' : 'max-h-32')}>
+              <AnsiText text={outputText} />
+            </pre>
+          </div>
         )
+      } else if (expandAll && cmd) {
+        details = <ShellCommand command={cmd} />
       }
       break
     }
