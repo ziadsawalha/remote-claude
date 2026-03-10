@@ -528,12 +528,13 @@ async function main() {
   // Watch a background task .output file and stream chunks to concentrator
   function startBgTaskOutputWatcher(taskId: string, outputPath: string) {
     if (bgTaskOutputWatchers.has(taskId)) return
-    debug(`[bgout] Starting watcher for task ${taskId}: ${outputPath}`)
+    diag('bgout', `Watching output for bg task ${taskId}`, { taskId, outputPath })
 
     let offset = 0
+    let totalBytes = 0
     let stopped = false
     let retries = 0
-    const MAX_RETRIES = 20 // 20 x 250ms = 5s max wait for file to appear
+    const MAX_RETRIES = 20 // 20 x 500ms = 10s max wait for file to appear
 
     async function readChunk() {
       if (stopped || !wsClient?.isConnected()) return
@@ -544,6 +545,7 @@ async function main() {
           const slice = file.slice(offset, size)
           const text = await slice.text()
           offset = size
+          totalBytes += text.length
           if (text) {
             wsClient!.sendBgTaskOutput(taskId, text, false)
           }
@@ -551,7 +553,7 @@ async function main() {
       } catch {
         // File might not exist yet
         if (retries++ < MAX_RETRIES) return // will retry on next poll
-        debug(`[bgout] Giving up on ${taskId} after ${MAX_RETRIES} retries`)
+        diag('bgout', `Gave up waiting for output file`, { taskId, retries: MAX_RETRIES })
         stopWatcher()
       }
     }
@@ -569,7 +571,7 @@ async function main() {
         if (wsClient?.isConnected()) {
           wsClient.sendBgTaskOutput(taskId, '', true)
         }
-        debug(`[bgout] Watcher stopped for task ${taskId}`)
+        diag('bgout', `Watcher stopped`, { taskId, totalBytes })
       })
     }
 
@@ -611,7 +613,7 @@ async function main() {
       while ((match = re.exec(text)) !== null) {
         const watcher = bgTaskOutputWatchers.get(match[1])
         if (watcher) {
-          debug(`[bgout] Task ${match[1]} completed, stopping watcher`)
+          diag('bgout', `Task completed, stopping watcher`, { taskId: match[1] })
           watcher.stop()
         }
       }
