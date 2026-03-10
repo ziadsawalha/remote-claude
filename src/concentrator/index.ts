@@ -443,6 +443,9 @@ async function main() {
                 // Track socket by wrapperId (multiple wrappers can share a sessionId)
                 sessionStore.setSessionSocket(data.sessionId, wrapperId, ws)
 
+                // Broadcast session update so dashboard picks up new wrapperIds and status
+                sessionStore.broadcastSessionUpdate(data.sessionId)
+
                 ws.send(JSON.stringify({ type: 'ack', eventId: data.sessionId }))
                 break
               }

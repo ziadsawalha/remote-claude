@@ -125,6 +125,7 @@ export interface SessionStore {
   // Background task output methods
   addBgTaskOutput: (sessionId: string, taskId: string, data: string, done: boolean) => void
   getBgTaskOutput: (taskId: string) => string | undefined
+  broadcastSessionUpdate: (sessionId: string) => void
   // Terminal viewer methods (multiple viewers per session)
   // Terminal viewers keyed by wrapperId (each PTY is on a specific rclaude instance)
   addTerminalViewer: (wrapperId: string, ws: ServerWebSocket<unknown>) => void
@@ -454,8 +455,18 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     if (session) {
       session.status = 'active'
       session.lastActivity = Date.now()
-      // Reset subagents - restarted session won't have old agents
+      // Reset stale state from previous run
       session.subagents = []
+      session.teammates = []
+      session.team = undefined
+      session.compacting = false
+      // Mark stale bg tasks as killed
+      for (const bgTask of session.bgTasks) {
+        if (bgTask.status === 'running') {
+          bgTask.status = 'killed'
+          bgTask.completedAt = Date.now()
+        }
+      }
     }
   }
 
@@ -1136,6 +1147,17 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     return bgTaskOutputCache.get(taskId)
   }
 
+  function broadcastSessionUpdate(sessionId: string): void {
+    const session = sessions.get(sessionId)
+    if (session) {
+      broadcast({
+        type: 'session_update',
+        sessionId,
+        session: toSessionSummary(session),
+      })
+    }
+  }
+
   return {
     createSession,
     resumeSession,
@@ -1174,6 +1196,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     hasSubagentTranscriptCache,
     addBgTaskOutput,
     getBgTaskOutput,
+    broadcastSessionUpdate,
     saveState,
     clearState,
   }

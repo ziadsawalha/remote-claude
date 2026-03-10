@@ -617,19 +617,30 @@ function ToolLine({
           const elapsed = subagent.stoppedAt
             ? Math.round((subagent.stoppedAt - subagent.startedAt) / 1000)
             : Math.round((Date.now() - subagent.startedAt) / 1000)
+          const agentIdForNav = subagent.agentId
           agentBadge = (
-            <span
+            <button
+              type="button"
+              onClick={e => {
+                e.stopPropagation()
+                const store = useSessionsStore.getState()
+                store.selectSubagent(agentIdForNav)
+                if (store.selectedSessionId) {
+                  store.openTab(store.selectedSessionId, 'transcript')
+                }
+              }}
               className={cn(
-                'inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold',
+                'inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold cursor-pointer hover:brightness-125 transition-all',
                 isRunning ? 'bg-active/20 text-active animate-pulse' : 'bg-emerald-500/20 text-emerald-400',
               )}
+              title="View agent transcript"
             >
               {isRunning ? 'running' : 'done'}
               {subagent.eventCount > 0 && (
                 <span className="text-muted-foreground font-normal">{subagent.eventCount} events</span>
               )}
               <span className="text-muted-foreground font-normal">{elapsed}s</span>
-            </span>
+            </button>
           )
         }
       }
@@ -833,27 +844,38 @@ function ToolLine({
   )
 }
 
-// Inline expandable agent transcript
+// Inline expandable agent transcript - live via store subscription + HTTP seed
 function AgentTranscriptInline({ agentId, toolId }: { agentId: string; toolId?: string }) {
   const sessionId = useSessionsStore(state => state.selectedSessionId)
-  const [entries, setEntries] = useState<TranscriptEntry[] | null>(null)
+  const storeKey = sessionId ? `${sessionId}:${agentId}` : ''
+  const liveEntries = useSessionsStore(state => (storeKey ? state.subagentTranscripts[storeKey] : undefined))
+  const [fetched, setFetched] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const collapsibleId = toolId ? `agent-transcript-${toolId}` : `agent-transcript-${agentId}`
 
   function handleExpand() {
-    if (entries || loading || !sessionId) return
+    if (fetched || loading || !sessionId) return
     setLoading(true)
     fetchSubagentTranscript(sessionId, agentId)
       .then(data => {
-        setEntries(data)
+        setFetched(true)
         setLoading(false)
+        if (data.length > 0) {
+          // Seed into store so WS updates merge cleanly
+          const key = `${sessionId}:${agentId}`
+          useSessionsStore.setState(state => ({
+            subagentTranscripts: { ...state.subagentTranscripts, [key]: data },
+          }))
+        }
       })
       .catch(err => {
         setError(err.message || 'Failed to fetch')
         setLoading(false)
       })
   }
+
+  const entries = liveEntries || null
 
   return (
     <Collapsible id={collapsibleId} label="agent transcript" onExpand={handleExpand}>
