@@ -69,8 +69,15 @@ const InputBar = memo(function InputBar({ sessionId }: { sessionId: string }) {
         />
         <button
           type="button"
-          onClick={handleSend}
-          disabled={isSending || !inputValue.trim()}
+          onClick={() => {
+            if (inputValue.trim() && !isSending) {
+              handleSend()
+            } else {
+              // No input - focus the textarea instead (useful on mobile to avoid Siri zone)
+              containerRef.current?.querySelector('textarea')?.focus()
+            }
+          }}
+          disabled={isSending}
           className={cn(
             'shrink-0 px-4 py-2 text-xs font-bold font-mono border rounded transition-colors',
             inputValue.trim() && !isSending
