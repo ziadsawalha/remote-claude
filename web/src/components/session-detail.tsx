@@ -72,7 +72,7 @@ const InputBar = memo(function InputBar({ sessionId }: { sessionId: string }) {
           onClick={handleSend}
           disabled={isSending || !inputValue.trim()}
           className={cn(
-            'shrink-0 px-4 py-2 text-xs font-bold font-mono border transition-colors',
+            'shrink-0 px-4 py-2 text-xs font-bold font-mono border rounded transition-colors',
             inputValue.trim() && !isSending
               ? 'bg-accent text-accent-foreground border-accent hover:bg-accent/80'
               : 'bg-muted text-muted-foreground border-border cursor-not-allowed',
