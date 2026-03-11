@@ -569,8 +569,7 @@ export function MarkdownInput({
     <div
       ref={containerRef}
       className={cn(
-        'relative border border-border rounded has-[:focus]:border-ring',
-        disabled && 'opacity-50',
+        'relative grid',
         className,
       )}
     >
@@ -584,7 +583,7 @@ export function MarkdownInput({
       <div
         ref={highlightRef}
         className={cn(
-          'absolute inset-0 pl-3 pr-14 py-2 pointer-events-none overflow-hidden',
+          'absolute inset-px pl-3 pr-14 py-2 pointer-events-none overflow-hidden',
           textClasses,
           'text-foreground',
         )}
@@ -610,11 +609,12 @@ export function MarkdownInput({
         autoCapitalize="off"
         spellCheck={false}
         className={cn(
-          'relative w-full bg-transparent pl-3 pr-14 py-2 resize-none',
+          'relative w-full bg-transparent border border-border rounded pl-3 pr-14 py-2 resize-none',
           textClasses,
           'text-transparent caret-foreground selection:bg-accent/30 selection:text-foreground',
-          'focus:outline-none',
+          'focus:outline-none focus:border-ring',
           'placeholder:text-muted-foreground',
+          'disabled:opacity-50',
         )}
         style={{ minHeight: '2.25rem' }}
       />
