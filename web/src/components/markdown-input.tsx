@@ -210,15 +210,12 @@ export function MarkdownInput({
   // Focus the expanded textarea on mount via ref callback
   // useEffect + requestAnimationFrame doesn't work on iOS Safari because
   // the focus isn't from a direct user gesture after the DOM swap
-  const expandedTextareaRef = useCallback(
-    (node: HTMLTextAreaElement | null) => {
-      if (node) {
-        textareaRef.current = node
-        node.focus()
-      }
-    },
-    [],
-  )
+  const expandedTextareaRef = useCallback((node: HTMLTextAreaElement | null) => {
+    if (node) {
+      textareaRef.current = node
+      node.focus()
+    }
+  }, [])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     const ta = textareaRef.current
@@ -467,52 +464,6 @@ export function MarkdownInput({
         className="fixed inset-x-0 z-50 flex flex-col bg-background"
         style={{ touchAction: 'manipulation', height: composeHeight, top: composeTop }}
       >
-        {/* Header bar */}
-        <div className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border">
-          <button type="button" onClick={handleCancel} className="text-xs text-muted-foreground px-2 py-1">
-            Cancel
-          </button>
-          <div className="flex items-center gap-2">
-            {showVoice && (
-              <button
-                type="button"
-                onClick={toggleRecording}
-                className={cn(
-                  'transition-colors p-1',
-                  recording
-                    ? 'text-red-400 animate-pulse'
-                    : transcribing
-                      ? 'text-yellow-400 animate-pulse'
-                      : 'text-muted-foreground hover:text-accent',
-                )}
-                title={recording ? 'Stop recording' : transcribing ? 'Transcribing...' : 'Voice input'}
-                disabled={transcribing}
-                style={{ touchAction: 'manipulation' }}
-              >
-                <Mic className="w-4 h-4" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="text-muted-foreground hover:text-accent transition-colors p-1"
-              title="Attach file"
-            >
-              <Paperclip className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={disabled || !value.trim()}
-              className={cn(
-                'text-sm font-bold px-4 py-1.5 rounded',
-                value.trim() ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground',
-              )}
-            >
-              Send
-            </button>
-          </div>
-        </div>
         {/* Hidden file input for attachment */}
         <input
           ref={fileInputRef}
@@ -560,19 +511,59 @@ export function MarkdownInput({
             style={expandedFontSize}
           />
         </div>
+        {/* Bottom toolbar - thumb-friendly */}
+        <div className="shrink-0 flex items-center justify-between px-3 py-2 border-t border-border">
+          <button type="button" onClick={handleCancel} className="text-xs text-muted-foreground px-2 py-1">
+            Cancel
+          </button>
+          <div className="flex items-center gap-2">
+            {showVoice && (
+              <button
+                type="button"
+                onClick={toggleRecording}
+                className={cn(
+                  'transition-colors p-1',
+                  recording
+                    ? 'text-red-400 animate-pulse'
+                    : transcribing
+                      ? 'text-yellow-400 animate-pulse'
+                      : 'text-muted-foreground hover:text-accent',
+                )}
+                title={recording ? 'Stop recording' : transcribing ? 'Transcribing...' : 'Voice input'}
+                disabled={transcribing}
+                style={{ touchAction: 'manipulation' }}
+              >
+                <Mic className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="text-muted-foreground hover:text-accent transition-colors p-1"
+              title="Attach file"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={disabled || !value.trim()}
+              className={cn(
+                'text-sm font-bold px-4 py-1.5 rounded',
+                value.trim() ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground',
+              )}
+            >
+              Send
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
 
   // Normal inline mode
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        'relative grid',
-        className,
-      )}
-    >
+    <div ref={containerRef} className={cn('relative grid', className)}>
       {/* Drag-over overlay */}
       {dragOver && (
         <div className="absolute inset-0 z-10 border-2 border-dashed border-accent bg-accent/10 rounded flex items-center justify-center pointer-events-none">
