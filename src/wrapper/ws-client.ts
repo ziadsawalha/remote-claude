@@ -97,16 +97,26 @@ export function createWsClient(options: WsClientOptions): WsClient {
   const messageQueue: WrapperMessage[] = []
   let heartbeatInterval: Timer | null = null
 
+  const debug = (msg: string) => {
+    if (process.env.RCLAUDE_DEBUG) {
+      const line = `[${new Date().toISOString()}] [ws] ${msg}\n`
+      const logFile = process.env.RCLAUDE_DEBUG_LOG || '/tmp/rclaude-debug.log'
+      try { require('fs').appendFileSync(logFile, line) } catch {}
+    }
+  }
+
   function connect() {
     try {
       const wsUrl = concentratorSecret
         ? `${concentratorUrl}${concentratorUrl.includes('?') ? '&' : '?'}secret=${encodeURIComponent(concentratorSecret)}`
         : concentratorUrl
+      debug(`Connecting to: ${wsUrl.replace(/secret=[^&]+/, 'secret=***')}`)
       ws = new WebSocket(wsUrl)
 
       ws.onopen = () => {
         connected = true
         reconnectAttempts = 0
+        debug('WebSocket connected')
 
         // Send session metadata with capabilities + version
         const meta: SessionMeta = {
@@ -146,7 +156,8 @@ export function createWsClient(options: WsClientOptions): WsClient {
         onConnected?.()
       }
 
-      ws.onclose = () => {
+      ws.onclose = (event: CloseEvent) => {
+        debug(`WebSocket closed: code=${event.code} reason=${event.reason || 'none'} wasClean=${event.wasClean}`)
         connected = false
         if (heartbeatInterval) {
           clearInterval(heartbeatInterval)
@@ -164,7 +175,10 @@ export function createWsClient(options: WsClientOptions): WsClient {
       }
 
       ws.onerror = event => {
-        const error = new Error(`WebSocket error: ${event}`)
+        const errorEvent = event as ErrorEvent
+        const detail = errorEvent.message || errorEvent.error || 'unknown'
+        debug(`WebSocket error: ${detail}`)
+        const error = new Error(`WebSocket error: ${detail}`)
         onError?.(error)
       }
 
