@@ -11,58 +11,11 @@ import { unstable_batchedUpdates as batchUpdates } from 'react-dom'
 // Graceful fallback if unstable_batchedUpdates is ever removed
 const batch: (fn: () => void) => void = batchUpdates ?? (fn => fn())
 import { recordIn, recordOut } from './ws-stats'
-import type { HookEvent, Session, TaskInfo, TranscriptEntry, WrapperCapability } from '@/lib/types'
+import type { SessionSummary } from '@shared/protocol'
+import type { HookEvent, Session, TaskInfo, TranscriptEntry } from '@/lib/types'
 import { type ProjectSettingsMap, applyHashRoute, handleBgTaskOutputMessage, useSessionsStore } from './use-sessions'
 
-interface SessionSummary {
-  id: string
-  cwd: string
-  model?: string
-  capabilities?: WrapperCapability[]
-  wrapperIds?: string[]
-  startedAt: number
-  lastActivity: number
-  status: Session['status']
-  compacting?: boolean
-  compactedAt?: number
-  eventCount: number
-  activeSubagentCount?: number
-  totalSubagentCount?: number
-  subagents?: Array<{
-    agentId: string
-    agentType: string
-    description?: string
-    status: 'running' | 'stopped'
-    startedAt: number
-    stoppedAt?: number
-    eventCount: number
-  }>
-  taskCount?: number
-  pendingTaskCount?: number
-  activeTasks?: Array<{ id: string; subject: string }>
-  pendingTasks?: Array<{ id: string; subject: string }>
-  archivedTaskCount?: number
-  runningBgTaskCount?: number
-  bgTasks?: Array<{
-    taskId: string
-    command: string
-    description: string
-    startedAt: number
-    completedAt?: number
-    status: 'running' | 'completed' | 'killed'
-  }>
-  teammates?: Array<{
-    name: string
-    status: 'idle' | 'working' | 'stopped'
-    currentTaskSubject?: string
-    completedTaskCount: number
-  }>
-  team?: { teamName: string; role: 'lead' | 'teammate' }
-  tokenUsage?: { input: number; cacheCreation: number; cacheRead: number; output: number }
-  stats?: Session['stats']
-  gitBranch?: string
-}
-
+// Dashboard message from concentrator WS (loose type field for extensibility)
 interface DashboardMessage {
   type: string
   sessionId?: string

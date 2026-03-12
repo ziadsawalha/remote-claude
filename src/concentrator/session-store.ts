@@ -11,26 +11,18 @@ import type { ServerWebSocket } from 'bun'
 import type {
   HookEvent,
   Session,
+  SessionSummary,
   TaskInfo,
-  TeamInfo,
-  TeammateInfo,
   TranscriptEntry,
   WrapperCapability,
 } from '../shared/protocol'
+export type { SessionSummary }
 
-const DEFAULT_CACHE_DIR = join(homedir(), '.cache', 'concentrator')
-const CACHE_FILENAME = 'sessions.json'
-
-export interface SessionStoreOptions {
-  cacheDir?: string
-  enablePersistence?: boolean
-}
-
-// Message types for dashboard subscribers
+// Dashboard broadcast message (concentrator -> browser)
 export interface DashboardMessage {
   type: 'session_update' | 'session_created' | 'session_ended' | 'event' | 'sessions_list' | 'agent_status' | 'toast' | 'settings_updated' | 'project_settings_updated'
   sessionId?: string
-  previousSessionId?: string // set when session was re-keyed (e.g. /clear)
+  previousSessionId?: string
   session?: SessionSummary
   sessions?: SessionSummary[]
   event?: HookEvent
@@ -40,55 +32,12 @@ export interface DashboardMessage {
   settings?: unknown
 }
 
-export interface SessionSummary {
-  id: string
-  cwd: string
-  model?: string
-  capabilities?: WrapperCapability[]
-  version?: string
-  buildTime?: string
-  wrapperIds: string[] // connected rclaude instances (for routing)
-  startedAt: number
-  lastActivity: number
-  status: Session['status']
-  compacting?: boolean
-  compactedAt?: number
-  eventCount: number
-  activeSubagentCount: number
-  totalSubagentCount: number
-  subagents: Array<{
-    agentId: string
-    agentType: string
-    description?: string
-    status: 'running' | 'stopped'
-    startedAt: number
-    stoppedAt?: number
-    eventCount: number
-  }>
-  taskCount: number
-  pendingTaskCount: number
-  activeTasks: Array<{ id: string; subject: string }>
-  pendingTasks: Array<{ id: string; subject: string }>
-  archivedTaskCount: number
-  runningBgTaskCount: number
-  bgTasks: Array<{
-    taskId: string
-    command: string
-    description: string
-    startedAt: number
-    completedAt?: number
-    status: 'running' | 'completed' | 'killed'
-  }>
-  teammates: Array<{
-    name: string
-    status: TeammateInfo['status']
-    currentTaskSubject?: string
-    completedTaskCount: number
-  }>
-  team?: TeamInfo
-  tokenUsage?: { input: number; cacheCreation: number; cacheRead: number; output: number }
-  stats: Session['stats']
-  gitBranch?: string
+const DEFAULT_CACHE_DIR = join(homedir(), '.cache', 'concentrator')
+const CACHE_FILENAME = 'sessions.json'
+
+export interface SessionStoreOptions {
+  cacheDir?: string
+  enablePersistence?: boolean
 }
 
 export interface SessionStore {
