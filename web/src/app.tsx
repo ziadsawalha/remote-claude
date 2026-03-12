@@ -252,6 +252,9 @@ function Dashboard() {
         </div>
       </div>
 
+      {/* Debug console (Ctrl+Shift+D) - in flex flow, shrinks main content */}
+      {showDebugConsole && <DebugConsole onClose={() => useSessionsStore.getState().toggleDebugConsole()} />}
+
       {/* Global session switcher (Ctrl+K from anywhere) */}
       {showSwitcher && (
         <CommandPalette
@@ -273,8 +276,7 @@ function Dashboard() {
       <QuickNoteModal />
       {/* Shift+? shortcut help */}
       <ShortcutHelp />
-      {/* Debug console (Ctrl+Shift+D) */}
-      {showDebugConsole && <DebugConsole onClose={() => useSessionsStore.getState().toggleDebugConsole()} />}
+
       {/* Toast notifications */}
       <ToastContainer />
     </div>

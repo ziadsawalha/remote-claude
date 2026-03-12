@@ -14,8 +14,7 @@ import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
 import yaml from 'highlight.js/lib/languages/yaml'
 import { Marked } from 'marked'
-import { markedHighlight } from 'marked-highlight'
-import { useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 
 // Register languages
 hljs.registerLanguage('javascript', javascript)
@@ -39,28 +38,19 @@ hljs.registerLanguage('sql', sql)
 hljs.registerLanguage('yaml', yaml)
 hljs.registerLanguage('yml', yaml)
 
-// Create marked instance with syntax highlighting
-const marked = new Marked(
-  markedHighlight({
-    emptyLangClass: 'hljs',
-    langPrefix: 'hljs language-',
-    highlight(code, lang) {
-      if (lang && hljs.getLanguage(lang)) {
-        try {
-          return hljs.highlight(code, { language: lang }).value
-        } catch {
-          return code
-        }
-      }
-      // No language specified -- return plain text (auto-detect misidentifies /* etc.)
-      return code
-    },
-  }),
-)
+const marked = new Marked()
 
-// Open all links in new tab
+// Custom renderer
 const renderer = new marked.Renderer()
 renderer.link = ({ href, text }) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`
+renderer.code = ({ text, lang }) => {
+  const langClass = lang ? ` class="hljs language-${lang}"` : ' class="hljs"'
+  let highlighted = text
+  if (lang && hljs.getLanguage(lang)) {
+    try { highlighted = hljs.highlight(text, { language: lang }).value } catch {}
+  }
+  return `<div class="code-block-wrap"><pre><code${langClass}>${highlighted}</code></pre><button class="code-copy-btn" title="Copy">⧉</button></div>`
+}
 
 // Configure marked options
 marked.setOptions({
@@ -127,5 +117,19 @@ export function Markdown({ children }: MarkdownProps) {
     return marked.parse(children) as string
   }, [children])
 
-  return <div className="prose-hacker" dangerouslySetInnerHTML={{ __html: html }} />
+  const ref = useRef<HTMLDivElement>(null)
+
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    const btn = (e.target as HTMLElement).closest('.code-copy-btn') as HTMLButtonElement | null
+    if (!btn) return
+    const wrap = btn.closest('.code-block-wrap')
+    const code = wrap?.querySelector('code')
+    if (!code) return
+    navigator.clipboard.writeText(code.textContent || '').then(() => {
+      btn.textContent = '✓'
+      setTimeout(() => { btn.textContent = '⧉' }, 1500)
+    })
+  }, [])
+
+  return <div ref={ref} className="prose-hacker" dangerouslySetInnerHTML={{ __html: html }} onClick={handleClick} />
 }

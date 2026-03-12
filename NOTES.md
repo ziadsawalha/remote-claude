@@ -22,7 +22,7 @@
 - [x] mobile ui need a button for QUICK NOTE
 - [x] push notifications!.. is there a hard coded key? or derived from rclaude key
 - [x] The agent, can already launch claude sessions at any CWD. I want to create a UI, where I can write, with completion, a path, where I want to spawn a new rclaude session using the same semantics... if the folder does NOT exist, I want to be prompted about it.
-- [ ] currently there can only be ONE agent, but the reality is, that there should be able to be multiple, one per machine, or container, or whatever.. that means, rclaude sessions MUST identify by some "machine" or something.. maybe we support mutliple rclaude_secret and that's how we identify what agent + rclaude runs on the same system?
+- [WAIT] currently there can only be ONE agent, but the reality is, that there should be able to be multiple, one per machine, or container, or whatever.. that means, rclaude sessions MUST identify by some "machine" or something.. maybe we support mutliple rclaude_secret and that's how we identify what agent + rclaude runs on the same system?
 - [x] BUG: When writing in the markdown input, sometimes it doesnt perfectly scroll DOWN.. and the text is overflowing onto the html...
 
 ![hello-2DGCVDEA@2x.png](https://concentrator.frst.dev/file/6qpooh.png)
@@ -36,3 +36,4 @@
 - [ ] The debug log, can it slide up from down, and resize the, shrinki the session list and transcript? so I still can see everything? Doesn't have to be too big, possibly make a FULL SCREEN button if you have to..
 - [ ] when we are launching rclaude/wrapper should we also on that appended system string say something about notifications if the user asked to notify, we could simply have a notify shell script or even explain how we can notify using curl so the notification should possibly go through the rapper W rapper, this is voice dictation, but you know the rapper I’m talking about, to tunnel the actual notification push up to the concentrator, which actually pushes the notification that would be great
 - [ ] oh any code box that is returned any code blocks should have a copy button on them so I can copy the contents of a code block. That would be great awesome.
+- [ ] Code blocks shall have a COPY action :-).. on hover!..

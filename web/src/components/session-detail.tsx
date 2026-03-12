@@ -534,7 +534,7 @@ export function SessionDetail() {
       {!selectedSubagentId && (
         <>
           {/* Tabs with follow checkbox */}
-          <div className="shrink-0 flex items-center border-b border-border">
+          <div className="shrink-0 flex items-center border-b border-border overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <button
               type="button"
               onClick={() => { haptic('tick'); setActiveTab('transcript') }}
