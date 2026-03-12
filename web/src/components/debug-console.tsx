@@ -1,5 +1,5 @@
-import { Copy, Trash2, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { Copy, Maximize2, Minimize2, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { type LogEntry, clearLog, copyLogText, getLogEntries, subscribeLog } from '@/lib/debug-log'
 
 const LEVEL_COLORS: Record<string, string> = {
@@ -8,6 +8,10 @@ const LEVEL_COLORS: Record<string, string> = {
   debug: 'text-cyan-400/70',
   log: 'text-foreground/80',
 }
+
+const MIN_HEIGHT = 120
+const DEFAULT_HEIGHT = 240
+const MAX_HEIGHT_RATIO = 0.7
 
 function LogLine({ entry }: { entry: LogEntry }) {
   const ts = new Date(entry.t).toISOString().slice(11, 23)
@@ -23,8 +27,11 @@ function LogLine({ entry }: { entry: LogEntry }) {
 export function DebugConsole({ onClose }: { onClose: () => void }) {
   const [entries, setEntries] = useState(getLogEntries)
   const [copied, setCopied] = useState(false)
+  const [height, setHeight] = useState(DEFAULT_HEIGHT)
+  const [fullscreen, setFullscreen] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const followRef = useRef(true)
+  const dragRef = useRef<{ startY: number; startH: number } | null>(null)
 
   useEffect(() => {
     return subscribeLog(() => {
@@ -37,7 +44,6 @@ export function DebugConsole({ onClose }: { onClose: () => void }) {
     })
   }, [])
 
-  // Auto-scroll on mount
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
   }, [])
@@ -59,12 +65,45 @@ export function DebugConsole({ onClose }: { onClose: () => void }) {
     setEntries([])
   }
 
+  // Drag resize from top edge
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    e.preventDefault()
+    dragRef.current = { startY: e.clientY, startH: height }
+    const el = e.currentTarget as HTMLElement
+    el.setPointerCapture(e.pointerId)
+  }, [height])
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragRef.current) return
+    const maxH = window.innerHeight * MAX_HEIGHT_RATIO
+    const delta = dragRef.current.startY - e.clientY
+    const newH = Math.min(maxH, Math.max(MIN_HEIGHT, dragRef.current.startH + delta))
+    setHeight(newH)
+  }, [])
+
+  const onPointerUp = useCallback(() => {
+    dragRef.current = null
+  }, [])
+
+  const panelHeight = fullscreen ? '100vh' : `${height}px`
+
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[60] flex flex-col bg-background/95 backdrop-blur border-t border-border shadow-2xl"
-      style={{ height: '40vh', minHeight: '200px' }}
+    <div
+      className={`shrink-0 flex flex-col bg-background border-t border-border ${fullscreen ? 'fixed inset-0 z-[60]' : ''}`}
+      style={{ height: panelHeight }}
     >
+      {/* Resize handle */}
+      {!fullscreen && (
+        <div
+          className="h-1.5 cursor-row-resize bg-transparent hover:bg-accent/30 transition-colors shrink-0"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          title="Drag to resize"
+        />
+      )}
       {/* Toolbar */}
-      <div className="shrink-0 flex items-center justify-between px-3 py-1.5 border-b border-border">
+      <div className="shrink-0 flex items-center justify-between px-3 py-1 border-b border-border">
         <span className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
           Debug Console ({entries.length})
         </span>
@@ -84,6 +123,14 @@ export function DebugConsole({ onClose }: { onClose: () => void }) {
             title="Clear logs"
           >
             <Trash2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setFullscreen(f => !f)}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+          >
+            {fullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
           <button
             type="button"
