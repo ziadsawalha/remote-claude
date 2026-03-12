@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { BUILD_VERSION } from '../../../src/shared/version'
 
 interface Props {
   children: ReactNode
@@ -36,6 +37,11 @@ export class ErrorBoundary extends Component<Props, State> {
       `Timestamp: ${new Date().toISOString()}`,
       `User Agent: ${navigator.userAgent}`,
       `URL: ${window.location.href}`,
+      `Version: ${BUILD_VERSION.gitHashShort} (${BUILD_VERSION.buildTime})`,
+      '',
+      '─── RECENT COMMITS ──────────────────────────────────────────────',
+      '',
+      ...(BUILD_VERSION.recentCommits || []).map(c => `  ${c.hash} ${c.message}`),
       '',
       '─── ERROR ───────────────────────────────────────────────────────',
       '',
@@ -100,6 +106,28 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="border border-destructive bg-destructive/10 p-4 mb-6">
               <div className="text-destructive font-bold mb-2">[ {error?.name || 'Error'} ]</div>
               <div className="text-foreground">{error?.message || 'An unknown error occurred'}</div>
+            </div>
+
+            {/* Version + Recent Commits */}
+            <div className="border border-border mb-6">
+              <div className="p-3 border-b border-border bg-card text-primary font-bold text-sm">[ BUILD INFO ]</div>
+              <div className="p-4 text-xs text-muted-foreground space-y-1">
+                <div>
+                  <span className="text-foreground/60">version:</span>{' '}
+                  <span className="text-accent">{BUILD_VERSION.gitHashShort}</span>{' '}
+                  <span className="text-foreground/40">({BUILD_VERSION.buildTime})</span>
+                </div>
+                {BUILD_VERSION.recentCommits?.length > 0 && (
+                  <div className="mt-2 space-y-0.5">
+                    {BUILD_VERSION.recentCommits.map(c => (
+                      <div key={c.hash}>
+                        <span className="text-accent/70">{c.hash}</span>{' '}
+                        <span className="text-foreground/60">{c.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Actions */}
