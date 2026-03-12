@@ -104,8 +104,25 @@ export function MarkdownInput({
   const [dragOver, setDragOver] = useState(false)
   const [showVoiceOverlay, setShowVoiceOverlay] = useState(false)
   const [holdToRecord, setHoldToRecord] = useState(false) // true = voice overlay in hold-to-record mode
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const holdActiveRef = useRef(false) // track across renders for touchend handler
+
+  // Central timer registry for all compose-related timers.
+  // handleExpandedFocus clears them all - leaked timers can't collapse compose after re-focus.
+  const composeTimersRef = useRef(new Set<ReturnType<typeof setTimeout>>())
+
+  function composeTimeout(fn: () => void, ms: number): ReturnType<typeof setTimeout> {
+    const id = setTimeout(() => {
+      composeTimersRef.current.delete(id)
+      fn()
+    }, ms)
+    composeTimersRef.current.add(id)
+    return id
+  }
+
+  function clearComposeTimers() {
+    for (const id of composeTimersRef.current) clearTimeout(id)
+    composeTimersRef.current.clear()
+  }
   const micPermissionRef = useRef(false) // true after getUserMedia succeeds once
 
   // Sync scroll between textarea and highlight div
@@ -346,12 +363,39 @@ export function MarkdownInput({
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
-    if (!files?.length) return
+    if (!files?.length) {
+      releaseCompose()
+      return
+    }
     for (const file of files) {
       uploadFile(file)
     }
     e.target.value = '' // reset so same file can be picked again
+    // Don't releaseCompose() here - focus() may silently fail on iOS Safari
+    // (file input onChange isn't a trusted user gesture for focus policy).
+    // Instead, keep retain alive and let the textarea focus handler reset it.
+    // If focus fails, retain count keeps compose open until next interaction.
+    textareaRef.current?.focus()
   }
+
+  // When the file picker is dismissed without selecting (cancel), onChange doesn't fire.
+  // Window regains focus when picker closes - try to re-focus textarea (resets retain).
+  // If focus fails (iOS gesture policy), release retain as fallback.
+  useEffect(() => {
+    function handleFilePickerDismiss() {
+      if (composeRetainRef.current <= 0) return
+      composeTimeout(() => {
+        textareaRef.current?.focus()
+        // If focus succeeded, handleExpandedFocus already reset everything.
+        // If it failed, release the retain so compose can eventually collapse.
+        if (document.activeElement !== textareaRef.current) {
+          releaseCompose()
+        }
+      }, 300)
+    }
+    window.addEventListener('focus', handleFilePickerDismiss)
+    return () => window.removeEventListener('focus', handleFilePickerDismiss)
+  })
 
   function handleVoiceResult(text: string) {
     // Insert at cursor or append
@@ -386,20 +430,22 @@ export function MarkdownInput({
   // Hold-to-record: press Send when empty -> hold 300ms -> voice overlay
   // First use: mic permission not yet granted -> fall back to normal tap overlay
   // After permission granted: hold-to-record works (no iOS permission dialog in the way)
+  const holdTimerIdRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   function handleSendPointerDown() {
     if (value.trim() || !showVoice) return // only on empty input with voice enabled
 
     if (!micPermissionRef.current) {
-      // No mic permission yet -- open normal overlay (user taps Allow, then records normally)
-      holdTimerRef.current = setTimeout(() => {
+      holdTimerIdRef.current = composeTimeout(() => {
+        holdTimerIdRef.current = null
         setHoldToRecord(false)
         setShowVoiceOverlay(true)
       }, 300)
       return
     }
 
-    // Mic permission already granted -- use hold-to-record mode
-    holdTimerRef.current = setTimeout(() => {
+    holdTimerIdRef.current = composeTimeout(() => {
+      holdTimerIdRef.current = null
       holdActiveRef.current = true
       setHoldToRecord(true)
       setShowVoiceOverlay(true)
@@ -408,20 +454,19 @@ export function MarkdownInput({
   }
 
   function handleSendPointerUp() {
-    if (holdTimerRef.current) {
-      clearTimeout(holdTimerRef.current)
-      holdTimerRef.current = null
+    if (holdTimerIdRef.current) {
+      clearTimeout(holdTimerIdRef.current)
+      composeTimersRef.current.delete(holdTimerIdRef.current)
+      holdTimerIdRef.current = null
     }
     if (holdActiveRef.current) {
       holdActiveRef.current = false
     }
   }
 
-  // Clean up hold timer on unmount
+  // Clean up all compose timers on unmount
   useEffect(() => {
-    return () => {
-      if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
-    }
+    return () => clearComposeTimers()
   }, [])
 
   function handleVoiceClose() {
@@ -448,6 +493,36 @@ export function MarkdownInput({
     textareaRef.current?.blur()
   }
 
+  // Retain count: anything that needs the compose overlay to stay open increments this.
+  // Blur handler only collapses when retainCount is 0.
+  // Examples: toolbar button taps (brief retain during click), file picker (retain until dismissed).
+  const composeRetainRef = useRef(0)
+
+  function retainCompose() {
+    composeRetainRef.current++
+  }
+
+  function releaseCompose() {
+    composeRetainRef.current = Math.max(0, composeRetainRef.current - 1)
+    if (composeRetainRef.current === 0 && document.activeElement !== textareaRef.current) {
+      handleExpandedBlur()
+    }
+  }
+
+  // Textarea regained focus - hard reset. Clears ALL compose timers and retain count.
+  // Self-healing: leaked retains or orphaned timers can't survive a re-focus.
+  function handleExpandedFocus() {
+    composeRetainRef.current = 0
+    clearComposeTimers()
+  }
+
+  function handleExpandedBlur() {
+    composeTimeout(() => {
+      if (composeRetainRef.current > 0) return
+      setExpanded(false)
+    }, 200)
+  }
+
   const textClasses = expanded
     ? 'font-mono whitespace-pre-wrap break-words' // font-size set via inline style (rem broken by 13px root)
     : 'text-xs font-mono whitespace-pre-wrap break-words'
@@ -463,6 +538,7 @@ export function MarkdownInput({
 
     return createPortal(
       <div
+        data-compose-overlay
         className="fixed inset-0 z-[999] flex flex-col bg-background"
         style={{ touchAction: 'manipulation', height: composeHeight, top: composeTop }}
       >
@@ -498,6 +574,8 @@ export function MarkdownInput({
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onScroll={syncScroll}
+            onFocus={handleExpandedFocus}
+            onBlur={handleExpandedBlur}
             disabled={disabled}
             placeholder={placeholder}
             autoCorrect="off"
@@ -513,8 +591,13 @@ export function MarkdownInput({
             style={expandedFontSize}
           />
         </div>
-        {/* Bottom toolbar - thumb-friendly */}
-        <div className="shrink-0 flex items-center justify-between px-3 py-2 border-t border-border">
+        {/* Bottom toolbar - thumb-friendly. Retain compose on pointer down, release on pointer up so blur doesn't collapse mid-tap. */}
+        <div
+          className="shrink-0 flex items-center justify-between px-3 py-2 border-t border-border"
+          onPointerDown={retainCompose}
+          onPointerUp={releaseCompose}
+          onPointerCancel={releaseCompose}
+        >
           <button type="button" onClick={handleCancel} className="text-xs text-muted-foreground px-2 py-1">
             Cancel
           </button>
@@ -532,7 +615,10 @@ export function MarkdownInput({
             )}
             <button
               type="button"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                retainCompose()
+                fileInputRef.current?.click()
+              }}
               className="text-muted-foreground hover:text-accent transition-colors p-1"
               title="Attach file"
             >
