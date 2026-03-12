@@ -504,6 +504,58 @@ export interface AgentStatus {
   connected: boolean
 }
 
+// Session summary: concentrator -> dashboard wire format
+export interface SessionSummary {
+  id: string
+  cwd: string
+  model?: string
+  capabilities?: WrapperCapability[]
+  version?: string
+  buildTime?: string
+  wrapperIds: string[]
+  startedAt: number
+  lastActivity: number
+  status: Session['status']
+  compacting?: boolean
+  compactedAt?: number
+  eventCount: number
+  activeSubagentCount: number
+  totalSubagentCount: number
+  subagents: Array<{
+    agentId: string
+    agentType: string
+    description?: string
+    status: 'running' | 'stopped'
+    startedAt: number
+    stoppedAt?: number
+    eventCount: number
+  }>
+  taskCount: number
+  pendingTaskCount: number
+  activeTasks: Array<{ id: string; subject: string }>
+  pendingTasks: Array<{ id: string; subject: string }>
+  archivedTaskCount: number
+  runningBgTaskCount: number
+  bgTasks: Array<{
+    taskId: string
+    command: string
+    description: string
+    startedAt: number
+    completedAt?: number
+    status: 'running' | 'completed' | 'killed'
+  }>
+  teammates: Array<{
+    name: string
+    status: TeammateInfo['status']
+    currentTaskSubject?: string
+    completedTaskCount: number
+  }>
+  team?: TeamInfo
+  tokenUsage?: { input: number; cacheCreation: number; cacheRead: number; output: number }
+  stats: Session['stats']
+  gitBranch?: string
+}
+
 // Configuration
 export const DEFAULT_CONCENTRATOR_URL = 'ws://localhost:9999'
 export const DEFAULT_CONCENTRATOR_PORT = 9999

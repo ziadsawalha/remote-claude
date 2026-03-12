@@ -33,9 +33,8 @@ function SessionItemContent({ session, compact }: { session: Session; compact?: 
   } = useSessionsStore()
   const isSelected = selectedSessionId === session.id
   const cachedEvents = events[session.id] || []
-  const model = cachedEvents.find(e => e.hookEvent === 'SessionStart' && e.data?.model)?.data?.model as
-    | string
-    | undefined
+  const sessionStartEvent = cachedEvents.find(e => e.hookEvent === 'SessionStart')
+  const model = (sessionStartEvent?.data as { model?: string } | undefined)?.model
   const ps = projectSettings[session.cwd]
 
   function handleClick() {

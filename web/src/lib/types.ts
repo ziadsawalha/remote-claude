@@ -1,40 +1,21 @@
-export interface SubagentInfo {
-  agentId: string
-  agentType: string
-  description?: string
-  startedAt: number
-  stoppedAt?: number
-  status: 'running' | 'stopped'
-  transcriptPath?: string
-  events: HookEvent[]
-}
+// Re-export shared types (single source of truth)
+export type {
+  ArchivedTaskGroup,
+  HookEventType,
+  SubagentInfo,
+  TaskInfo,
+  TeamInfo,
+  WrapperCapability,
+} from '@shared/protocol'
+import type { WrapperCapability } from '@shared/protocol'
 
-export interface TeamInfo {
-  teamName: string
-  role: 'lead' | 'teammate'
-}
-
-export type WrapperCapability = 'terminal'
+// Re-export HookEvent but with a looser data type for generic property access
+// (dashboard does e.data?.model, e.data?.tool_name, etc.)
+export type { HookEvent } from '@shared/protocol'
 
 /** Check if a session can open a terminal. Requires explicit terminal capability. */
 export function canTerminal(s: Session): boolean {
   return (s.status === 'active' || s.status === 'idle') && !!s.capabilities?.includes('terminal')
-}
-
-export interface TaskInfo {
-  id: string
-  subject: string
-  description?: string
-  status: 'pending' | 'in_progress' | 'completed' | 'deleted'
-  blockedBy?: string[]
-  blocks?: string[]
-  owner?: string
-  updatedAt: number
-}
-
-export interface ArchivedTaskGroup {
-  archivedAt: number
-  tasks: TaskInfo[]
 }
 
 export interface BgTaskSummary {
@@ -46,6 +27,7 @@ export interface BgTaskSummary {
   status: 'running' | 'completed' | 'killed'
 }
 
+// Client-side session model (derived from SessionSummary wire format with defaults applied)
 export interface Session {
   id: string
   cwd: string
@@ -82,7 +64,7 @@ export interface Session {
     currentTaskSubject?: string
     completedTaskCount: number
   }>
-  team?: TeamInfo
+  team?: { teamName: string; role: 'lead' | 'teammate' }
   tokenUsage?: { input: number; cacheCreation: number; cacheRead: number; output: number }
   stats?: {
     totalInputTokens: number
@@ -100,40 +82,15 @@ export interface Session {
   }
 }
 
-export interface HookEvent {
-  type: 'hook'
-  sessionId: string
-  hookEvent: HookEventType
-  timestamp: number
-  data: Record<string, unknown>
-}
-
-export type HookEventType =
-  | 'SessionStart'
-  | 'UserPromptSubmit'
-  | 'PreToolUse'
-  | 'PostToolUse'
-  | 'PostToolUseFailure'
-  | 'Notification'
-  | 'Stop'
-  | 'SessionEnd'
-  | 'SubagentStart'
-  | 'SubagentStop'
-  | 'PreCompact'
-  | 'PermissionRequest'
-  | 'TeammateIdle'
-  | 'TaskCompleted'
-  | 'Setup'
-
+// Transcript types (web-specific rich types for rendering, not the opaque Record<string,unknown> from shared)
 export interface TranscriptContentBlock {
   type: 'text' | 'tool_use' | 'thinking' | 'tool_result' | string
   text?: string
-  thinking?: string // thinking blocks use 'thinking' field instead of 'text'
+  thinking?: string
   signature?: string
   name?: string
-  id?: string // tool_use id
+  id?: string
   input?: Record<string, unknown>
-  // For tool_result blocks
   tool_use_id?: string
   content?: string | unknown
 }
@@ -153,14 +110,12 @@ export interface TranscriptEntry {
     content?: string | TranscriptContentBlock[]
   }
   data?: Record<string, unknown>
-  // Rich tool result data from Claude Code
   toolUseResult?: {
     filePath?: string
     oldString?: string
     newString?: string
     structuredPatch?: Array<{ oldStart: number; oldLines: number; newStart: number; newLines: number; lines: string[] }>
   }
-  // Images detected in this entry (added by concentrator)
   images?: TranscriptImage[]
 }
 
@@ -176,4 +131,4 @@ export type ProjectSettingsMap = Record<string, ProjectSettings>
 export type WSMessage =
   | { type: 'sessions'; data: Session[] }
   | { type: 'session_update'; data: Session }
-  | { type: 'event'; data: HookEvent }
+  | { type: 'event'; data: import('@shared/protocol').HookEvent }
