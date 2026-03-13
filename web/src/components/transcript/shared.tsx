@@ -204,26 +204,46 @@ export function Collapsible({
 
 // Truncated output - caps visible lines with a "more" button.
 // Line limit is configurable per-tool via Settings > Display.
+// Also truncates individual lines longer than MAX_LINE_CHARS to prevent
+// a few massive lines from dominating the output area.
+const MAX_LINE_CHARS = 500
+
+function capLineLength(line: string, max: number): { text: string; truncated: boolean } {
+  if (line.length <= max) return { text: line, truncated: false }
+  return { text: `${line.slice(0, max)} ...`, truncated: true }
+}
+
 export function TruncatedPre({ text, tool, highlight }: { text: string; tool?: ToolDisplayKey; highlight?: RegExp }) {
   const [revealed, setRevealed] = useState(false)
   const limit = useSessionsStore(s => (tool ? resolveToolDisplay(s.dashboardPrefs, tool).lineLimit : 10))
   const safeText = typeof text === 'string' ? text : String(text ?? '')
   const lines = safeText.split('\n')
-  const needsTruncation = limit > 0 && lines.length > limit && !revealed
-  const displayText = needsTruncation ? lines.slice(0, limit).join('\n') : safeText
+  const needsLineTruncation = limit > 0 && lines.length > limit && !revealed
+  const visibleLines = needsLineTruncation ? lines.slice(0, limit) : lines
+
+  // Cap individual line lengths (even when fully revealed)
+  let linesWereCapped = false
+  const cappedLines = revealed
+    ? lines // fully revealed = show everything unmodified
+    : visibleLines.map(line => {
+        const result = capLineLength(line, MAX_LINE_CHARS)
+        if (result.truncated) linesWereCapped = true
+        return result.text
+      })
+  const displayText = cappedLines.join('\n')
 
   return (
     <div>
       <pre className="text-[10px] bg-black/30 p-2 whitespace-pre-wrap font-mono">
         <AnsiText text={displayText} highlight={highlight} />
       </pre>
-      {needsTruncation && (
+      {(needsLineTruncation || linesWereCapped) && !revealed && (
         <button
           type="button"
           onClick={() => setRevealed(true)}
           className="text-[10px] text-accent hover:text-accent/80 font-mono mt-0.5 px-2"
         >
-          +{lines.length - limit} more lines
+          {needsLineTruncation ? `+${lines.length - limit} more lines` : 'show full lines'}
         </button>
       )}
     </div>

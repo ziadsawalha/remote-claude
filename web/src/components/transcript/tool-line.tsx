@@ -244,9 +244,9 @@ export function ToolLine({
                 <span className="text-muted-foreground font-normal">{subagent.eventCount} events</span>
               )}
               <span className="text-muted-foreground font-normal">{elapsed}s</span>
-              {subagent.tokenUsage && subagent.tokenUsage.totalInput > 0 && (
+              {subagent.tokenUsage && subagent.tokenUsage.totalOutput > 0 && (
                 <span className="text-muted-foreground font-normal">
-                  {formatTokenCount(subagent.tokenUsage.totalInput + subagent.tokenUsage.totalOutput)}
+                  {formatTokenCount(subagent.tokenUsage.totalOutput)} out
                 </span>
               )}
             </button>

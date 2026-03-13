@@ -1499,7 +1499,9 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     let sessionChanged = false
     if (session) {
       // Ensure stats object exists (sessions created before this feature)
-      if (!session.stats) {
+      if (!session.stats || isInitial) {
+        // Reset stats on initial load to avoid double-counting when
+        // transcript watcher re-reads the full file (restart, reconnect, truncation recovery)
         session.stats = {
           totalInputTokens: 0,
           totalOutputTokens: 0,
