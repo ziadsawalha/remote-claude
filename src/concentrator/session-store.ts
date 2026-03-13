@@ -146,6 +146,11 @@ export interface SessionStore {
   addFileListener: (requestId: string, cb: (result: any) => void) => void
   removeFileListener: (requestId: string) => void
   resolveFile: (requestId: string, result: any) => boolean
+  recordTraffic: (direction: 'in' | 'out', bytes: number) => void
+  getTrafficStats: () => {
+    in: { messagesPerSec: number; bytesPerSec: number }
+    out: { messagesPerSec: number; bytesPerSec: number }
+  }
   saveState: () => Promise<void>
   clearState: () => Promise<void>
 }
@@ -216,6 +221,50 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
   // Background task output cache: taskId -> accumulated output string
   const bgTaskOutputCache = new Map<string, string>()
 
+  // Traffic tracking: rolling window for messages/bytes per second
+  const TRAFFIC_WINDOW_MS = 3000
+  const trafficSamples: Array<{ t: number; dir: 'in' | 'out'; bytes: number }> = []
+
+  function recordTraffic(direction: 'in' | 'out', bytes: number): void {
+    const now = Date.now()
+    trafficSamples.push({ t: now, dir: direction, bytes })
+    // Prune old samples
+    const cutoff = now - TRAFFIC_WINDOW_MS
+    while (trafficSamples.length > 0 && trafficSamples[0].t < cutoff) {
+      trafficSamples.shift()
+    }
+  }
+
+  function getTrafficStats(): {
+    in: { messagesPerSec: number; bytesPerSec: number }
+    out: { messagesPerSec: number; bytesPerSec: number }
+  } {
+    const now = Date.now()
+    const cutoff = now - TRAFFIC_WINDOW_MS
+    // Prune stale
+    while (trafficSamples.length > 0 && trafficSamples[0].t < cutoff) {
+      trafficSamples.shift()
+    }
+    const windowSec = TRAFFIC_WINDOW_MS / 1000
+    let inMsgs = 0
+    let inBytes = 0
+    let outMsgs = 0
+    let outBytes = 0
+    for (const s of trafficSamples) {
+      if (s.dir === 'in') {
+        inMsgs++
+        inBytes += s.bytes
+      } else {
+        outMsgs++
+        outBytes += s.bytes
+      }
+    }
+    return {
+      in: { messagesPerSec: +(inMsgs / windowSec).toFixed(1), bytesPerSec: Math.round(inBytes / windowSec) },
+      out: { messagesPerSec: +(outMsgs / windowSec).toFixed(1), bytesPerSec: Math.round(outBytes / windowSec) },
+    }
+  }
+
   // Helper to create session summary for broadcasting
   function toSessionSummary(session: Session): SessionSummary {
     const wrappers = sessionSockets.get(session.id)
@@ -282,6 +331,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     for (const ws of dashboardSubscribers) {
       try {
         ws.send(json)
+        recordTraffic('out', json.length)
       } catch {
         // Remove dead connections
         dashboardSubscribers.delete(ws)
@@ -1269,6 +1319,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
         try {
           ws.send(json)
           sent.add(ws)
+          recordTraffic('out', bytes)
           // Track per-channel stats
           const entry = subscriberRegistry.get(ws)
           if (entry) {
@@ -1293,6 +1344,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       if (!sent.has(ws) && !v2Subscribers.has(ws)) {
         try {
           ws.send(json)
+          recordTraffic('out', bytes)
           const entry = subscriberRegistry.get(ws)
           if (entry) {
             entry.totals.messagesSent++
@@ -1788,6 +1840,8 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     addFileListener,
     removeFileListener,
     resolveFile,
+    recordTraffic,
+    getTrafficStats,
     saveState,
     clearState,
   }

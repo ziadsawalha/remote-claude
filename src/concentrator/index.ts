@@ -343,7 +343,15 @@ async function main() {
   })
 
   // Create REST API server (on same or different port)
-  const apiHandler = createApiHandler({ sessionStore, webDir, vapidPublicKey, rclaudeSecret, cacheDir: authCacheDir })
+  const serverStartTime = Date.now()
+  const apiHandler = createApiHandler({
+    sessionStore,
+    webDir,
+    vapidPublicKey,
+    rclaudeSecret,
+    cacheDir: authCacheDir,
+    serverStartTime,
+  })
 
   if (apiPort && apiPort !== port) {
     // Separate API server
@@ -402,7 +410,9 @@ async function main() {
         },
         message(ws, message) {
           try {
-            const data = JSON.parse(message as string)
+            const msgStr = message as string
+            sessionStore.recordTraffic('in', msgStr.length)
+            const data = JSON.parse(msgStr)
 
             switch (data.type) {
               case 'meta': {

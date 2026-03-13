@@ -1,29 +1,37 @@
 import { Bell, BellOff, Settings } from 'lucide-react'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { SettingsDialog } from '@/components/settings-page'
+import { WsStatsModal } from '@/components/ws-stats-modal'
 import { getPushStatus, subscribeToPush, useSessionsStore } from '@/hooks/use-sessions'
 import { getRates, subscribe as subscribeStats } from '@/hooks/ws-stats'
+import { haptic } from '@/lib/utils'
 
 function formatBytes(bps: number): string {
   if (bps < 1024) return `${Math.round(bps)}B`
   return `${(bps / 1024).toFixed(1)}K`
 }
 
-function WsStats() {
+function WsStats({ onClick }: { onClick: () => void }) {
   const rates = useSyncExternalStore(subscribeStats, getRates)
   return (
-    <span
-      className="text-[10px] text-muted-foreground/70 font-mono tabular-nums whitespace-nowrap"
-      title="WS traffic (3s avg)"
+    <button
+      type="button"
+      onClick={() => {
+        haptic('tap')
+        onClick()
+      }}
+      className="text-[10px] text-muted-foreground/70 font-mono tabular-nums whitespace-nowrap hover:text-muted-foreground transition-colors cursor-pointer"
+      title="WS traffic (3s avg) - click for details"
     >
       <span className="opacity-50">in</span> {rates.msgInPerSec.toFixed(0)}m/{formatBytes(rates.bytesInPerSec)}s{' '}
       <span className="opacity-50">out</span> {rates.msgOutPerSec.toFixed(0)}m/{formatBytes(rates.bytesOutPerSec)}s
-    </span>
+    </button>
   )
 }
 
 export function Header() {
   const [showSettings, setShowSettings] = useState(false)
+  const [showStatsModal, setShowStatsModal] = useState(false)
   const showStats = useSessionsStore(s => s.dashboardPrefs.showWsStats)
   const [pushState, setPushState] = useState<
     'loading' | 'unsupported' | 'prompt' | 'subscribing' | 'subscribed' | 'denied'
@@ -102,12 +110,13 @@ export function Header() {
         {showStats && (
           <>
             <span className="flex-1" />
-            <WsStats />
+            <WsStats onClick={() => setShowStatsModal(true)} />
           </>
         )}
       </div>
 
       <SettingsDialog open={showSettings} onOpenChange={setShowSettings} />
+      <WsStatsModal open={showStatsModal} onClose={() => setShowStatsModal(false)} />
     </header>
   )
 }

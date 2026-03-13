@@ -182,6 +182,7 @@ export interface ApiOptions {
   vapidPublicKey?: string
   rclaudeSecret?: string
   cacheDir?: string
+  serverStartTime?: number
 }
 
 // Build a map of embedded files for quick lookup
@@ -247,7 +248,7 @@ interface SessionOverview {
  * Create API request handler
  */
 export function createApiHandler(options: ApiOptions) {
-  const { sessionStore, webDir, vapidPublicKey, rclaudeSecret, cacheDir } = options
+  const { sessionStore, webDir, vapidPublicKey, rclaudeSecret, cacheDir, serverStartTime = Date.now() } = options
 
   function sessionToOverview(session: Session): SessionOverview {
     const lastEvent = session.events[session.events.length - 1]
@@ -1520,6 +1521,37 @@ Output a JSON array of strings. Each string should be the correct spelling of on
           headers: { 'Content-Type': 'application/json' },
         })
       }
+    }
+
+    // GET /api/stats - server metrics
+    if (req.method === 'GET' && path === '/api/stats') {
+      const allSessions = sessionStore.getAllSessions()
+      let active = 0
+      let idle = 0
+      let ended = 0
+      for (const s of allSessions) {
+        if (s.status === 'active') active++
+        else if (s.status === 'idle') idle++
+        else ended++
+      }
+
+      const diag = sessionStore.getSubscriptionsDiag()
+      const traffic = sessionStore.getTrafficStats()
+
+      return new Response(
+        JSON.stringify({
+          uptime: Math.round((Date.now() - serverStartTime) / 1000),
+          sessions: { total: allSessions.length, active, idle, ended },
+          connections: {
+            total: diag.summary.totalSubscribers,
+            legacy: diag.summary.legacySubscribers,
+            v2: diag.summary.v2Subscribers,
+          },
+          traffic,
+          channels: diag.summary.channelCounts,
+        }),
+        { headers: { 'Content-Type': 'application/json' } },
+      )
     }
 
     // GET /api/subscriptions - diagnostic view of channel subscriptions
