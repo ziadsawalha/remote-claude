@@ -149,7 +149,7 @@ export function SessionDetail() {
     }
   }, [requestedTab, requestedTabSeq])
 
-  const sessions = useSessionsStore(state => state.sessions)
+  const session = useSessionsStore(state => state.sessions.find(s => s.id === state.selectedSessionId))
   const events = useSessionsStore(state =>
     selectedSessionId ? state.events[selectedSessionId] || EMPTY_EVENTS : EMPTY_EVENTS,
   )
@@ -157,10 +157,11 @@ export function SessionDetail() {
     selectedSessionId ? state.transcripts[selectedSessionId] || EMPTY_TRANSCRIPT : EMPTY_TRANSCRIPT,
   )
   const agentConnected = useSessionsStore(state => state.agentConnected)
-  const projectSettings = useSessionsStore(state => state.projectSettings)
+  const projectSettings = useSessionsStore(state =>
+    session?.cwd ? state.projectSettings[session.cwd] : undefined,
+  )
   const selectedSubagentId = useSessionsStore(state => state.selectedSubagentId)
   const selectSubagent = useSessionsStore(state => state.selectSubagent)
-  const session = sessions.find(s => s.id === selectedSessionId)
 
   // Subagent transcript: store (live WS push) + initial HTTP fetch
   const subagentKey = selectedSessionId && selectedSubagentId ? `${selectedSessionId}:${selectedSubagentId}` : ''
@@ -209,22 +210,24 @@ export function SessionDetail() {
   const reviveSessionId = session?.id
   useEffect(() => {
     if (reviveState !== 'waiting' || !reviveCwd || !reviveSessionId) return
-    const reviveTime = reviveStartRef.current
-    if (reviveTime === 0) return
-    const newSession = sessions.find(
-      s =>
-        s.id !== reviveSessionId &&
-        s.cwd === reviveCwd &&
-        (s.status === 'active' || s.status === 'idle') &&
-        s.startedAt > reviveTime,
-    )
-    if (newSession) {
-      setReviveState('idle')
-      setReviveCountdown(0)
-      reviveStartRef.current = 0
-      useSessionsStore.getState().selectSession(newSession.id)
-    }
-  }, [reviveState, reviveCwd, reviveSessionId, sessions])
+    return useSessionsStore.subscribe(state => {
+      const reviveTime = reviveStartRef.current
+      if (reviveTime === 0) return
+      const newSession = state.sessions.find(
+        s =>
+          s.id !== reviveSessionId &&
+          s.cwd === reviveCwd &&
+          (s.status === 'active' || s.status === 'idle') &&
+          s.startedAt > reviveTime,
+      )
+      if (newSession) {
+        setReviveState('idle')
+        setReviveCountdown(0)
+        reviveStartRef.current = 0
+        useSessionsStore.getState().selectSession(newSession.id)
+      }
+    })
+  }, [reviveState, reviveCwd, reviveSessionId])
 
   if (!session) {
     return (
@@ -289,7 +292,7 @@ export function SessionDetail() {
           <span className="text-accent text-xs uppercase tracking-wider">Session Info</span>
           {!infoExpanded &&
             (() => {
-              const ps = projectSettings[session.cwd]
+              const ps = projectSettings
               return (
                 <span className="text-muted-foreground text-[10px] ml-2 inline-flex items-center gap-1">
                   {ps?.icon && (

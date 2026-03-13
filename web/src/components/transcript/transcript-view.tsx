@@ -7,7 +7,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { useCallback, useEffect, useRef } from 'react'
 import { useSessionsStore } from '@/hooks/use-sessions'
 import type { TranscriptEntry } from '@/lib/types'
-import { CompactedDivider, CompactingBanner, GroupView } from './group-view'
+import { CompactedDivider, CompactingBanner, MemoizedGroupView } from './group-view'
 import { useIncrementalGroups } from './grouping'
 
 interface TranscriptViewProps {
@@ -30,11 +30,21 @@ export function TranscriptView({
 
   const { resultMap, groups } = useIncrementalGroups(entries)
 
+  // Lift subagents selector here (once) instead of per-GroupView (N times)
+  const subagents = useSessionsStore(state => {
+    const session = state.sessions.find(s => s.id === state.selectedSessionId)
+    return session?.subagents
+  })
+
   const virtualizer = useVirtualizer({
     count: groups.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 150,
-    overscan: 5,
+    overscan: 10,
+    getItemKey: index => {
+      const g = groups[index]
+      return `${g.type}-${g.timestamp}-${index}`
+    },
     observeElementRect: (instance, cb) => {
       const el = instance.scrollElement
       if (!el) return
@@ -77,8 +87,6 @@ export function TranscriptView({
     return () => el.removeEventListener('scroll', handleScroll)
   }, [follow, onReachedBottom])
 
-  const newDataSeq = useSessionsStore(state => state.newDataSeq)
-
   const scrollToBottom = useCallback(() => {
     const el = parentRef.current
     if (!el || followKilledRef.current) return
@@ -96,10 +104,18 @@ export function TranscriptView({
     requestAnimationFrame(settle)
   }, [])
 
+  // Subscribe to newDataSeq without triggering re-renders - only used for scroll-to-bottom
+  const followRef = useRef(follow)
+  followRef.current = follow
   useEffect(() => {
-    if (!follow || followKilledRef.current) return
-    scrollToBottom()
-  }, [follow, newDataSeq, scrollToBottom])
+    let lastSeq = useSessionsStore.getState().newDataSeq
+    return useSessionsStore.subscribe(state => {
+      if (state.newDataSeq !== lastSeq) {
+        lastSeq = state.newDataSeq
+        if (followRef.current && !followKilledRef.current) scrollToBottom()
+      }
+    })
+  }, [scrollToBottom])
 
   useEffect(() => {
     if (!follow) return
@@ -147,7 +163,14 @@ export function TranscriptView({
               const group = groups[virtualItem.index]
               if (group.type === 'compacted') return <CompactedDivider />
               if (group.type === 'compacting') return <CompactingBanner />
-              return <GroupView group={group} resultMap={resultMap} showThinking={showThinking} />
+              return (
+                <MemoizedGroupView
+                  group={group}
+                  resultMap={resultMap}
+                  showThinking={showThinking}
+                  subagents={subagents}
+                />
+              )
             })()}
           </div>
         ))}

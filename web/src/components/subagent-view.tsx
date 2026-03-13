@@ -4,6 +4,8 @@ import { fetchSubagents, useSessionsStore } from '@/hooks/use-sessions'
 import type { HookEvent, SubagentInfo } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
+const EMPTY_EVENTS: HookEvent[] = []
+
 function formatDuration(startMs: number, endMs?: number): string {
   const diff = (endMs || Date.now()) - startMs
   const seconds = Math.floor(diff / 1000)
@@ -42,8 +44,7 @@ export function SubagentView({ sessionId }: { sessionId: string }) {
   const [subagents, setSubagents] = useState<SubagentInfo[]>([])
   const [loaded, setLoaded] = useState(false)
 
-  const allEvents = useSessionsStore(state => state.events)
-  const events = allEvents[sessionId] || []
+  const events = useSessionsStore(state => state.events[sessionId] || EMPTY_EVENTS)
 
   // Fetch subagents on mount
   useEffect(() => {

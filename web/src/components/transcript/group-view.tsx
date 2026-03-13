@@ -3,13 +3,13 @@
  * Includes task notification lines, compaction dividers, and the main group layout.
  */
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { useSessionsStore } from '@/hooks/use-sessions'
 import type { TranscriptContentBlock } from '@/lib/types'
 import { cn } from '@/lib/utils'
 import { Markdown } from '../markdown'
 import type { DisplayGroup, TaskNotification } from './grouping'
-import { ToolLine } from './tool-line'
+import { MemoizedToolLine } from './tool-line'
 
 function TaskNotificationLine({ notification: n, time }: { notification: TaskNotification; time: string }) {
   const [expanded, setExpanded] = useState(false)
@@ -46,21 +46,35 @@ function TaskNotificationLine({ notification: n, time }: { notification: TaskNot
   )
 }
 
+type SubagentRef = Array<{
+  agentId: string
+  agentType: string
+  description?: string
+  status: 'running' | 'stopped'
+  startedAt: number
+  stoppedAt?: number
+  eventCount: number
+  tokenUsage?: { totalInput: number; totalOutput: number; cacheCreation: number; cacheRead: number }
+}>
+
 export function GroupView({
   group,
   resultMap,
   showThinking = false,
+  subagents,
 }: {
   group: DisplayGroup
   resultMap: Map<string, { result: string; extra?: Record<string, unknown> }>
   showThinking?: boolean
+  subagents?: SubagentRef
 }) {
-  const subagents = useSessionsStore(state => {
-    const session = state.sessions.find(s => s.id === state.selectedSessionId)
-    return session?.subagents
-  })
   const expandAll = useSessionsStore(state => state.expandAll)
-  const globalSettings = useSessionsStore(state => state.globalSettings)
+  const userLabel = useSessionsStore(state => (state.globalSettings.userLabel as string)?.trim() || 'USER')
+  const agentLabel = useSessionsStore(state => (state.globalSettings.agentLabel as string)?.trim() || 'CLAUDE')
+  const userColor = useSessionsStore(state => (state.globalSettings.userColor as string)?.trim() || '')
+  const agentColor = useSessionsStore(state => (state.globalSettings.agentColor as string)?.trim() || '')
+  const userSize = useSessionsStore(state => (state.globalSettings.userSize as string) || '')
+  const agentSize = useSessionsStore(state => (state.globalSettings.agentSize as string) || '')
   const time = group.timestamp ? new Date(group.timestamp).toLocaleTimeString('en-US', { hour12: false }) : ''
 
   if (group.type === 'system' && group.notifications?.length) {
@@ -108,15 +122,11 @@ export function GroupView({
       }
     }
   }
-  const userTag = (globalSettings.userLabel as string)?.trim() || 'USER'
-  const agentTag = (globalSettings.agentLabel as string)?.trim() || 'CLAUDE'
-  const label = isUser ? userTag : agentTag
-  const customColor = isUser
-    ? (globalSettings.userColor as string)?.trim()
-    : (globalSettings.agentColor as string)?.trim()
+  const label = isUser ? userLabel : agentLabel
+  const customColor = isUser ? userColor : agentColor
   const borderColor = isUser ? 'border-event-prompt' : 'border-primary'
   const labelBg = isUser ? 'bg-event-prompt text-background' : 'bg-primary text-primary-foreground'
-  const sizeKey = (isUser ? (globalSettings.userSize as string) : (globalSettings.agentSize as string)) || ''
+  const sizeKey = isUser ? userSize : agentSize
   const sizeClass =
     { xs: 'text-[8px]', sm: 'text-[9px]', '': 'text-[10px]', lg: 'text-[13px]', xl: 'text-[16px]' }[sizeKey] ||
     'text-[10px]'
@@ -178,7 +188,7 @@ export function GroupView({
               )
             case 'tool':
               return (
-                <ToolLine
+                <MemoizedToolLine
                   key={i}
                   tool={item.tool}
                   result={item.result}
@@ -229,3 +239,7 @@ export function CompactingBanner() {
     </div>
   )
 }
+
+// Memoized GroupView - prevents re-renders when parent (virtualizer) re-renders
+// but the group data hasn't actually changed
+export const MemoizedGroupView = memo(GroupView)

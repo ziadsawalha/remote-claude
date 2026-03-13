@@ -194,8 +194,7 @@ export function Collapsible({
 // Line limit is configurable per-tool via Settings > Display.
 export function TruncatedPre({ text, tool }: { text: string; tool?: ToolDisplayKey }) {
   const [revealed, setRevealed] = useState(false)
-  const prefs = useSessionsStore(s => s.dashboardPrefs)
-  const limit = tool ? resolveToolDisplay(prefs, tool).lineLimit : 10
+  const limit = useSessionsStore(s => (tool ? resolveToolDisplay(s.dashboardPrefs, tool).lineLimit : 10))
   const safeText = typeof text === 'string' ? text : String(text ?? '')
   const lines = safeText.split('\n')
   const needsTruncation = limit > 0 && lines.length > limit && !revealed

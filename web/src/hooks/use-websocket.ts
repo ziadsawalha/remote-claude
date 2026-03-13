@@ -94,6 +94,34 @@ function flushMessages() {
   })
 }
 
+// Track unsubscribed data warnings (log once per session+type combo, after 1s grace period)
+const unsubWarnings = new Set<string>()
+let lastSelectedSessionId: string | null = null
+let lastSelectedAt = 0
+
+function isForSelectedSession(sessionId: string | undefined): boolean {
+  if (!sessionId) return true // messages without sessionId are global
+  const state = useSessionsStore.getState()
+  // Track session switches for the grace period
+  if (state.selectedSessionId !== lastSelectedSessionId) {
+    lastSelectedSessionId = state.selectedSessionId
+    lastSelectedAt = Date.now()
+  }
+  if (sessionId === state.selectedSessionId) return true
+  // Grace period: allow data from recently-deselected sessions (1s)
+  if (Date.now() - lastSelectedAt < 1000) return true
+  return false
+}
+
+function warnUnsubscribedData(type: string, sessionId: string) {
+  const key = `${type}:${sessionId}`
+  if (unsubWarnings.has(key)) return
+  unsubWarnings.add(key)
+  console.warn(
+    `[ws] Discarding ${type} for non-selected session ${sessionId.slice(0, 8)}... (selected: ${lastSelectedSessionId?.slice(0, 8) || 'none'}, switched ${Math.round((Date.now() - lastSelectedAt) / 1000)}s ago)`,
+  )
+}
+
 function processMessage(msg: DashboardMessage) {
   switch (msg.type) {
     case 'sessions_list': {
@@ -146,6 +174,10 @@ function processMessage(msg: DashboardMessage) {
     }
     case 'event': {
       if (msg.event && msg.sessionId) {
+        if (!isForSelectedSession(msg.sessionId)) {
+          warnUnsubscribedData('event', msg.sessionId)
+          break
+        }
         useSessionsStore.setState(state => {
           const currentEvents = state.events[msg.sessionId!] || []
           return {
@@ -160,6 +192,10 @@ function processMessage(msg: DashboardMessage) {
     }
     case 'transcript_entries': {
       if (msg.sessionId && msg.entries?.length) {
+        if (!isForSelectedSession(msg.sessionId)) {
+          warnUnsubscribedData('transcript_entries', msg.sessionId)
+          break
+        }
         useSessionsStore.setState(state => {
           const existing = state.transcripts[msg.sessionId!] || []
           // Strip optimistic entries (injected by sendInput) when real data arrives
@@ -176,6 +212,10 @@ function processMessage(msg: DashboardMessage) {
     }
     case 'subagent_transcript': {
       if (msg.sessionId && msg.entries?.length) {
+        if (!isForSelectedSession(msg.sessionId)) {
+          warnUnsubscribedData('subagent_transcript', msg.sessionId)
+          break
+        }
         const agentId = (msg as any).agentId
         if (agentId) {
           const key = `${msg.sessionId}:${agentId}`
@@ -194,6 +234,10 @@ function processMessage(msg: DashboardMessage) {
     }
     case 'tasks_update': {
       if (msg.sessionId && msg.tasks) {
+        if (!isForSelectedSession(msg.sessionId)) {
+          warnUnsubscribedData('tasks_update', msg.sessionId)
+          break
+        }
         useSessionsStore.setState(state => ({
           tasks: { ...state.tasks, [msg.sessionId!]: msg.tasks! },
         }))
@@ -232,7 +276,9 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const { setConnected, setError, setWs } = useSessionsStore()
+  const setConnected = useSessionsStore(s => s.setConnected)
+  const setError = useSessionsStore(s => s.setError)
+  const setWs = useSessionsStore(s => s.setWs)
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return

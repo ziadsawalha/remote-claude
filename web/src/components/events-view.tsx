@@ -68,18 +68,26 @@ export function EventsView({ events, follow = false, onUserScroll, onReachedTop 
   }, [follow, onReachedTop])
 
   // Follow mode: scroll to top (newest first) when new data arrives
-  const newDataSeq = useSessionsStore(state => state.newDataSeq)
+  // Subscribe without re-rendering - newDataSeq only drives scroll behavior
+  const followRef = useRef(follow)
+  followRef.current = follow
   useEffect(() => {
-    if (!follow || followKilledRef.current || reversed.length === 0) return
-    const el = parentRef.current
-    if (!el) return
-    requestAnimationFrame(() => {
-      if (followKilledRef.current) return
-      if (el.scrollTop > 1) {
-        el.scrollTo({ top: 0, behavior: 'instant' })
+    let lastSeq = useSessionsStore.getState().newDataSeq
+    return useSessionsStore.subscribe(state => {
+      if (state.newDataSeq !== lastSeq) {
+        lastSeq = state.newDataSeq
+        if (!followRef.current || followKilledRef.current) return
+        const el = parentRef.current
+        if (!el) return
+        requestAnimationFrame(() => {
+          if (followKilledRef.current) return
+          if (el.scrollTop > 1) {
+            el.scrollTo({ top: 0, behavior: 'instant' })
+          }
+        })
       }
     })
-  }, [follow, newDataSeq, reversed.length])
+  }, [])
 
   if (reversed.length === 0) {
     return (

@@ -3,7 +3,7 @@
  * Handles all tool types (Bash, Read, Edit, Write, Agent, MCP, etc.)
  */
 
-import React, { Suspense } from 'react'
+import React, { memo, Suspense } from 'react'
 import { useSessionsStore } from '@/hooks/use-sessions'
 import { resolveToolDisplay, type ToolDisplayKey } from '@/lib/dashboard-prefs'
 import type { TranscriptContentBlock } from '@/lib/types'
@@ -11,6 +11,12 @@ import { cn, truncate } from '@/lib/utils'
 import { JsonInspector } from '../json-inspector'
 import { Collapsible, getToolStyle, shortPath, TruncatedPre } from './shared'
 import { DiffView, ShellCommand, WritePreview } from './tool-renderers'
+
+function formatTokenCount(tokens: number): string {
+  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M tok`
+  if (tokens >= 1000) return `${(tokens / 1000).toFixed(0)}K tok`
+  return `${tokens} tok`
+}
 
 // Lazy import to break circular dependency: agent-views -> ToolLine -> AgentTranscriptInline -> agent-views
 const LazyAgentTranscriptInline = React.lazy(() =>
@@ -42,14 +48,14 @@ export function ToolLine({
     startedAt: number
     stoppedAt?: number
     eventCount: number
+    tokenUsage?: { totalInput: number; totalOutput: number; cacheCreation: number; cacheRead: number }
   }>
 }) {
   const name = tool.name || 'Tool'
   const input = tool.input || {}
   const style = getToolStyle(name)
   const expandAll = useSessionsStore(state => state.expandAll)
-  const dashPrefs = useSessionsStore(state => state.dashboardPrefs)
-  const toolPrefs = resolveToolDisplay(dashPrefs, name as ToolDisplayKey)
+  const toolDefaultOpen = useSessionsStore(state => resolveToolDisplay(state.dashboardPrefs, name as ToolDisplayKey).defaultOpen)
 
   let summary = ''
   let details: React.ReactNode = null
@@ -172,6 +178,11 @@ export function ToolLine({
                 <span className="text-muted-foreground font-normal">{subagent.eventCount} events</span>
               )}
               <span className="text-muted-foreground font-normal">{elapsed}s</span>
+              {subagent.tokenUsage && subagent.tokenUsage.totalInput > 0 && (
+                <span className="text-muted-foreground font-normal">
+                  {formatTokenCount(subagent.tokenUsage.totalInput + subagent.tokenUsage.totalOutput)}
+                </span>
+              )}
             </button>
           )
         }
@@ -361,7 +372,7 @@ export function ToolLine({
         <JsonInspector title={name} data={input} result={result} extra={toolUseResult} />
       </div>
       {details && (
-        <Collapsible id={tool.id ? `tool-${tool.id}` : undefined} label="output" defaultOpen={toolPrefs.defaultOpen}>
+        <Collapsible id={tool.id ? `tool-${tool.id}` : undefined} label="output" defaultOpen={toolDefaultOpen}>
           {details}
         </Collapsible>
       )}
@@ -369,3 +380,5 @@ export function ToolLine({
     </div>
   )
 }
+
+export const MemoizedToolLine = memo(ToolLine)
