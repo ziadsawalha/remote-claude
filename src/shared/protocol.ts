@@ -444,6 +444,7 @@ export interface Session {
   teammates: TeammateInfo[]
   team?: TeamInfo
   diagLog: Array<{ t: number; type: string; msg: string; args?: unknown }>
+  effortLevel?: string // 'speed' field from API usage: e.g. 'standard', maps to low/medium/high
   tokenUsage?: { input: number; cacheCreation: number; cacheRead: number; output: number }
   stats: {
     totalInputTokens: number
@@ -578,6 +579,7 @@ export interface SessionSummary {
     completedTaskCount: number
   }>
   team?: TeamInfo
+  effortLevel?: string
   tokenUsage?: { input: number; cacheCreation: number; cacheRead: number; output: number }
   stats: Session['stats']
   gitBranch?: string

@@ -61,6 +61,7 @@ export interface Session {
     completedTaskCount: number
   }>
   team?: { teamName: string; role: 'lead' | 'teammate' }
+  effortLevel?: string
   tokenUsage?: { input: number; cacheCreation: number; cacheRead: number; output: number }
   stats?: {
     totalInputTokens: number

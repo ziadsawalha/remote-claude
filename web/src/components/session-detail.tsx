@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { fetchSubagentTranscript, reviveSession, sendInput, useSessionsStore } from '@/hooks/use-sessions'
 import { canTerminal, type TranscriptEntry } from '@/lib/types'
-import { cn, contextWindowSize, formatAge, formatModel, haptic, isMobileViewport } from '@/lib/utils'
+import { cn, contextWindowSize, formatAge, formatEffort, formatModel, haptic, isMobileViewport } from '@/lib/utils'
 import { BgTasksView } from './bg-tasks-view'
 import { DiagView } from './diag-view'
 import { EventsView } from './events-view'
@@ -315,6 +315,15 @@ export function SessionDetail() {
                   <span>
                     {' · '}
                     {formatModel(model || session.model)}
+                    {session.effortLevel &&
+                      (() => {
+                        const effort = formatEffort(session.effortLevel)
+                        return effort ? (
+                          <span className="text-muted-foreground ml-1" title={`effort: ${effort.label}`}>
+                            {effort.symbol}
+                          </span>
+                        ) : null
+                      })()}
                   </span>
                   {session.tokenUsage &&
                     (() => {
@@ -385,7 +394,18 @@ export function SessionDetail() {
                   >
                     {session.status}
                   </span>
-                  <span className="text-foreground">{formatModel(model || session.model)}</span>
+                  <span className="text-foreground">
+                    {formatModel(model || session.model)}
+                    {session.effortLevel &&
+                      (() => {
+                        const effort = formatEffort(session.effortLevel)
+                        return effort ? (
+                          <span className="text-muted-foreground ml-1">
+                            {effort.symbol} {effort.label}
+                          </span>
+                        ) : null
+                      })()}
+                  </span>
                   {session.claudeVersion && (
                     <span className="text-muted-foreground text-[10px]">cc/{session.claudeVersion}</span>
                   )}

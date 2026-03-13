@@ -62,6 +62,21 @@ export function contextWindowSize(model: string | undefined): number {
   return 200_000
 }
 
+/** Format effort level from API 'speed' field to human-readable label + symbol */
+export function formatEffort(speed: string | undefined): { label: string; symbol: string } | null {
+  if (!speed) return null
+  switch (speed) {
+    case 'fast':
+      return { label: 'low', symbol: '\u25CB' } // ○
+    case 'standard':
+      return { label: 'medium', symbol: '\u25D0' } // ◐
+    case 'extended':
+      return { label: 'high', symbol: '\u25CF' } // ●
+    default:
+      return { label: speed, symbol: '\u25D0' }
+  }
+}
+
 /**
  * Haptic feedback via web-haptics (works on iOS + Android).
  * Uses hidden <input type="checkbox" switch> trick for iOS Safari Taptic Engine.

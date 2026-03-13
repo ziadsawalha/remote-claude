@@ -319,6 +319,7 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
         completedTaskCount: t.completedTaskCount,
       })),
       team: session.team,
+      effortLevel: session.effortLevel,
       tokenUsage: session.tokenUsage,
       stats: session.stats,
       gitBranch: session.gitBranch,
@@ -1543,9 +1544,19 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
           session.stats.toolCallCount += content.filter((c: any) => c.type === 'tool_use').length
         }
 
+        // Extract model + effort from assistant messages (more reliable than SessionStart)
+        const assistantModel = (entry as any).message?.model
+        if (assistantModel && typeof assistantModel === 'string') {
+          session.model = assistantModel
+        }
+
         // Extract token usage (latest = context window, cumulative = totals)
         const usage = (entry as any).message?.usage
         if (usage && typeof usage.input_tokens === 'number') {
+          // Extract effort level from API 'speed' field
+          if (usage.speed && typeof usage.speed === 'string') {
+            session.effortLevel = usage.speed
+          }
           session.tokenUsage = {
             input: usage.input_tokens || 0,
             cacheCreation: usage.cache_creation_input_tokens || 0,
