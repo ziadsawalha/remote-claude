@@ -27,7 +27,7 @@ export function QuickNoteModal() {
   // Global keyboard shortcut + programmatic open via custom event
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.ctrlKey && e.shiftKey && e.key === 'N') {
+      if (e.ctrlKey && e.shiftKey && !e.altKey && e.key === 'N') {
         e.preventDefault()
         if (selectedSessionId && isActive) {
           haptic('tap')
