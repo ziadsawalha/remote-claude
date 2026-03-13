@@ -9,6 +9,7 @@ const SHORTCUTS = [
   { keys: 'Ctrl+K', action: 'Session switcher (fuzzy finder)' },
   { keys: 'Ctrl+K F:', action: 'File browser (in switcher)' },
   { keys: 'Ctrl+Shift+N', action: 'Quick note (append to NOTES.md)' },
+  { keys: 'Ctrl+Shift+Alt+N', action: 'Open NOTES.md in file editor' },
   { keys: 'Ctrl+Shift+D', action: 'Toggle debug console' },
   { keys: 'Ctrl+Shift+T', action: 'Toggle terminal for current session' },
   { keys: 'Ctrl+O', action: 'Toggle verbose / expand all' },

@@ -279,6 +279,7 @@ const SHORTCUTS = [
   ['Toggle sidebar', 'Ctrl+B'],
   ['Toggle verbose', 'Ctrl+O'],
   ['Quick note', 'Ctrl+Shift+N'],
+  ['Open NOTES.md', 'Ctrl+Shift+Alt+N'],
   ['Toggle terminal', 'Ctrl+Shift+T'],
   ['Debug console', 'Ctrl+Shift+D'],
   ['Shortcut help', 'Shift+?'],

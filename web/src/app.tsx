@@ -150,6 +150,15 @@ function Dashboard() {
           }
         }
       }
+      // Ctrl+Shift+Alt+N - open NOTES.md in file editor
+      if (e.ctrlKey && e.shiftKey && e.altKey && e.key === 'N') {
+        e.preventDefault()
+        const store = useSessionsStore.getState()
+        if (store.selectedSessionId) {
+          store.openTab(store.selectedSessionId, 'files')
+          store.setPendingFilePath('NOTES.md')
+        }
+      }
       // Escape - go home to transcript + focus input (desktop only)
       if (e.key === 'Escape' && !e.ctrlKey && !e.metaKey && !e.shiftKey && !isMobileViewport()) {
         const el = e.target as HTMLElement

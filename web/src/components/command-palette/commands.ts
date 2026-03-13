@@ -48,6 +48,20 @@ export function getPaletteCommands(onClose: () => void): PaletteCommand[] {
         onClose()
       },
     },
+    ...(store.selectedSessionId
+      ? [
+          {
+            id: 'open-notes',
+            label: 'Open NOTES.md in file editor',
+            shortcut: 'Ctrl+Shift+Alt+N',
+            action: () => {
+              store.openTab(store.selectedSessionId!, 'files')
+              store.setPendingFilePath('NOTES.md')
+              onClose()
+            },
+          },
+        ]
+      : []),
     ...(session && canTerminal(session) && session.wrapperIds?.[0]
       ? [
           {
