@@ -217,6 +217,9 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
           if (key.startsWith(`${id}:`)) subagentTranscripts[key] = state.subagentTranscripts[key]
         }
       }
+      // Close terminal on session switch - PTY is tied to a wrapperId,
+      // keeping it open would stream the old session's terminal
+      const closeTerminal = state.showTerminal ? { showTerminal: false, terminalWrapperId: null } : {}
       return {
         selectedSessionId: id,
         selectedSubagentId: null,
@@ -226,6 +229,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
         events,
         transcripts,
         subagentTranscripts,
+        ...closeTerminal,
       }
     })
     // Auto-open terminal if defaultView is TTY and session supports it
