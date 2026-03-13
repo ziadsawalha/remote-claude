@@ -9,9 +9,9 @@ export interface BuildVersion {
 }
 
 export const BUILD_VERSION: BuildVersion = {
-  gitHash: 'unknown',
-  gitHashShort: 'dev',
-  buildTime: '',
+  gitHash: 'd2c377ebd345d5cf814f03d31d2b78c04fc0672e',
+  gitHashShort: 'd2c377e-dirty',
+  buildTime: '2026-03-13T15:00:19.251Z',
   dirty: true,
-  recentCommits: [],
+  recentCommits: [{"hash":"d2c377e","message":"(HEAD -> main, origin/main, origin/HEAD) feat: Default view setting (transcript vs TTY)"},{"hash":"ccaf845","message":"fix: Quick note multiline indentation"},{"hash":"ec9fb88","message":"fix: Shorten placeholder text on mobile to prevent wrapping"}],
 }
