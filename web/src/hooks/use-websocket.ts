@@ -95,7 +95,6 @@ function flushMessages() {
   })
 }
 
-
 function processMessage(msg: DashboardMessage) {
   switch (msg.type) {
     case 'sessions_list': {
@@ -135,8 +134,10 @@ function processMessage(msg: DashboardMessage) {
               const transcripts = { ...state.transcripts }
               delete events[msg.previousSessionId]
               delete transcripts[msg.previousSessionId]
-              events[msg.sessionId!] = []
-              transcripts[msg.sessionId!] = []
+              // Preserve any data already received for the new session ID
+              // (e.g. compacting marker broadcast during rekey)
+              if (!events[msg.sessionId!]) events[msg.sessionId!] = []
+              if (!transcripts[msg.sessionId!]) transcripts[msg.sessionId!] = []
               newState.events = events
               newState.transcripts = transcripts
             }

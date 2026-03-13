@@ -584,12 +584,14 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
     session.lastActivity = Date.now()
     sessions.set(newId, session)
 
-    // Reset ephemeral state
+    // Reset ephemeral state (preserve compacting flag - processEvent handles the transition)
+    const wasCompacting = session.compacting
     session.events = []
     session.subagents = []
     session.teammates = []
     session.team = undefined
-    session.compacting = false
+    // Don't reset session.compacting here - let processEvent clear it on SessionStart
+    // so the compacted marker gets properly injected into the new transcript
     session.tasks = []
     session.archivedTasks = []
     session.diagLog = []
@@ -691,6 +693,20 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
       session: toSessionSummary(session),
     })
 
+    // If compaction was in progress, re-inject the compacting marker into the new transcript.
+    // Sent AFTER session_update so dashboard has already switched to newId and won't wipe it.
+    // Sent AFTER channel migration so broadcastToChannel reaches the migrated subscribers.
+    if (wasCompacting) {
+      const marker = { type: 'compacting' as const, timestamp: new Date().toISOString() }
+      addTranscriptEntries(newId, [marker], false)
+      broadcastToChannel('session:transcript', newId, {
+        type: 'transcript_entries',
+        sessionId: newId,
+        entries: [marker],
+        isInitial: false,
+      })
+    }
+
     return session
   }
 
@@ -754,17 +770,22 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
           entries: [marker],
           isInitial: false,
         })
-      } else if (session.compacting && event.hookEvent === 'SessionStart') {
+      } else if (session.compacting) {
+        // Any event after PreCompact means compaction finished (SessionStart) or was interrupted
         session.compacting = false
-        session.compactedAt = Date.now()
-        const marker = { type: 'compacted', timestamp: new Date().toISOString() }
-        addTranscriptEntries(sessionId, [marker], false)
-        broadcastToChannel('session:transcript', sessionId, {
-          type: 'transcript_entries',
-          sessionId,
-          entries: [marker],
-          isInitial: false,
-        })
+        if (event.hookEvent === 'SessionStart') {
+          // Successful compaction
+          session.compactedAt = Date.now()
+          const marker = { type: 'compacted', timestamp: new Date().toISOString() }
+          addTranscriptEntries(sessionId, [marker], false)
+          broadcastToChannel('session:transcript', sessionId, {
+            type: 'transcript_entries',
+            sessionId,
+            entries: [marker],
+            isInitial: false,
+          })
+        }
+        // Interrupted/canceled: just clear the flag, no divider
       }
 
       // Capture agent description from PreToolUse(Agent) tool calls
