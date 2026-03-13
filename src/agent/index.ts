@@ -286,7 +286,7 @@ async function spawnSession(
     if (key === 'TMUX_SESSION') tmuxSession = value
   }
 
-  if (exitCode === 0 || exitCode === 1) {
+  if (exitCode === 0) {
     return { success: true, tmuxSession }
   }
   return { success: false, error: stderr || `Script exited with code ${exitCode}` }
