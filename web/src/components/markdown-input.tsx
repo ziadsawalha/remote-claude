@@ -331,13 +331,16 @@ export function MarkdownInput({
     let hasImage = false
     let imageItem: DataTransferItem | null = null
     let textItem: DataTransferItem | null = null
+    const allTypes: string[] = []
     for (const item of items) {
+      allTypes.push(`${item.kind}:${item.type}`)
       if (item.type.startsWith('image/')) {
         hasImage = true
         imageItem = item
       }
       if (item.type === 'text/plain') textItem = item
     }
+    console.log(`[paste] ${items.length} items: [${allTypes.join(', ')}] hasImage=${hasImage} hasText=${!!textItem}`)
 
     // Both image and text available - check if text is meaningful (not just a filename)
     // macOS puts filenames as text/plain when copying screenshots or files
@@ -347,9 +350,11 @@ export function MarkdownInput({
       if (!file) return
       // Read the text to check if it's worth offering a choice
       const text = await new Promise<string>(resolve => textItem!.getAsString(resolve))
-      const isJustFilename = /^[^\n]{1,500}\.(png|jpe?g|gif|webp|svg|bmp|tiff?|ico|heic)$/i.test(text.trim()) ||
-        /^(\/|~|[A-Z]:\\)/.test(text.trim()) // file paths (Unix or Windows)
-      if (!text.trim() || isJustFilename) {
+      const trimmed = text.trim()
+      const isJustFilename = /^[^\n]{1,500}\.(png|jpe?g|gif|webp|svg|bmp|tiff?|ico|heic)$/i.test(trimmed) ||
+        /^(\/|~|[A-Z]:\\)/.test(trimmed) // file paths (Unix or Windows)
+      console.log(`[paste] text="${trimmed.slice(0, 120)}" isFilename=${isJustFilename} -> ${!trimmed || isJustFilename ? 'auto-image' : 'show-picker'}`)
+      if (!trimmed || isJustFilename) {
         // Text is empty or just a filename - upload image directly
         uploadFile(file)
       } else {
