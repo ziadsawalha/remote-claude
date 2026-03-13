@@ -98,7 +98,6 @@ export function createWsClient(options: WsClientOptions): WsClient {
   let connected = false
   let shouldReconnect = true
   let reconnectAttempts = 0
-  const maxReconnectAttempts = 10
   const messageQueue: WrapperMessage[] = []
   let heartbeatInterval: Timer | null = null
 
@@ -165,9 +164,9 @@ export function createWsClient(options: WsClientOptions): WsClient {
         onDisconnected?.()
 
         // Attempt reconnect
-        if (shouldReconnect && reconnectAttempts < maxReconnectAttempts) {
+        if (shouldReconnect) {
           reconnectAttempts++
-          const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000)
+          const delay = Math.min(1000 * 2 ** reconnectAttempts, 30_000)
           setTimeout(connect, delay)
         }
       }
@@ -233,9 +232,9 @@ export function createWsClient(options: WsClientOptions): WsClient {
     } catch (error) {
       onError?.(error as Error)
       // Attempt reconnect on connection failure
-      if (shouldReconnect && reconnectAttempts < maxReconnectAttempts) {
+      if (shouldReconnect) {
         reconnectAttempts++
-        const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000)
+        const delay = Math.min(1000 * 2 ** reconnectAttempts, 30_000)
         setTimeout(connect, delay)
       }
     }
