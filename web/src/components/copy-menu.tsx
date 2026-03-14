@@ -2,23 +2,33 @@
  * CopyMenu - Copy button with format options.
  * Desktop: click = copy markdown, right-click = format picker (Radix ContextMenu).
  * Mobile: tap = format picker (Radix DropdownMenu).
+ *
+ * Formats: Rich Text, Markdown, Plain Text, Image (when captureRef provided).
  */
 
 import { Check, Copy } from 'lucide-react'
 import { Marked } from 'marked'
 import { ContextMenu, DropdownMenu } from 'radix-ui'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { cn, haptic, isMobileViewport } from '@/lib/utils'
 
 const marked = new Marked()
 
-type CopyFormat = 'rich' | 'markdown' | 'plain'
+type CopyFormat = 'rich' | 'markdown' | 'plain' | 'image'
 
-const FORMAT_OPTIONS: Array<{ key: CopyFormat; label: string; desc: string }> = [
+interface FormatOption {
+  key: CopyFormat
+  label: string
+  desc: string
+}
+
+const TEXT_FORMATS: FormatOption[] = [
   { key: 'rich', label: 'Rich Text', desc: 'Bold, bullets, links' },
   { key: 'markdown', label: 'Markdown', desc: 'Raw source' },
   { key: 'plain', label: 'Plain Text', desc: 'No formatting' },
 ]
+
+const IMAGE_FORMAT: FormatOption = { key: 'image', label: 'Image', desc: 'Copy as PNG' }
 
 function stripHtml(html: string): string {
   const div = document.createElement('div')
@@ -30,7 +40,7 @@ function markdownToHtml(md: string): string {
   return marked.parse(md, { async: false }) as string
 }
 
-async function copyAs(text: string, format: CopyFormat) {
+async function copyAsText(text: string, format: 'rich' | 'markdown' | 'plain') {
   switch (format) {
     case 'markdown':
       await navigator.clipboard.writeText(text)
@@ -57,7 +67,35 @@ async function copyAs(text: string, format: CopyFormat) {
   }
 }
 
-// Shared menu items used by both ContextMenu and DropdownMenu
+async function copyAsImage(element: HTMLElement) {
+  const { toBlob } = await import('html-to-image')
+  const bgColor = getComputedStyle(document.body).backgroundColor || '#0a0a0a'
+
+  // html-to-image clones the node internally - no DOM mutation needed
+  const blob = await toBlob(element, {
+    pixelRatio: 2,
+    backgroundColor: bgColor,
+    style: {
+      // Tight bounds on the clone only
+      display: 'inline-block',
+      width: 'fit-content',
+      padding: '8px',
+    },
+    filter: (node: HTMLElement) => {
+      // Strip copy buttons and code-block copy from the capture
+      if (node.dataset?.copyMenu === 'true') return false
+      if (node.classList?.contains('code-copy-btn')) return false
+      if (node.classList?.contains('table-source')) return false
+      return true
+    },
+  })
+
+  if (blob) {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+  }
+}
+
+// Shared menu styling
 const menuContentClass =
   'min-w-[170px] bg-popover border border-border rounded-lg shadow-xl py-1 z-[100] animate-in fade-in zoom-in-95 duration-100'
 const menuLabelClass = 'px-3 py-1.5 text-[10px] text-muted-foreground uppercase tracking-wider font-bold'
@@ -69,10 +107,15 @@ interface CopyMenuProps {
   text: string
   className?: string
   iconClassName?: string
+  /** Enable "Copy as Image" - captures the button's parent element */
+  copyAsImage?: boolean
 }
 
-export function CopyMenu({ text, className, iconClassName = 'w-3 h-3' }: CopyMenuProps) {
+export function CopyMenu({ text, className, iconClassName = 'w-3 h-3', copyAsImage: enableImage }: CopyMenuProps) {
   const [copied, setCopied] = useState(false)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+
+  const formats = enableImage ? [...TEXT_FORMATS, IMAGE_FORMAT] : TEXT_FORMATS
 
   function flashCopied() {
     setCopied(true)
@@ -82,7 +125,15 @@ export function CopyMenu({ text, className, iconClassName = 'w-3 h-3' }: CopyMen
 
   function handleSelect(format: CopyFormat) {
     haptic('tap')
-    copyAs(text, format).then(flashCopied)
+    if (format === 'image') {
+      const el = buttonRef.current?.parentElement
+      if (el)
+        copyAsImage(el)
+          .then(flashCopied)
+          .catch(() => haptic('error'))
+    } else {
+      copyAsText(text, format).then(flashCopied)
+    }
   }
 
   function handleOpen() {
@@ -98,7 +149,7 @@ export function CopyMenu({ text, className, iconClassName = 'w-3 h-3' }: CopyMen
     return (
       <DropdownMenu.Root onOpenChange={open => open && handleOpen()}>
         <DropdownMenu.Trigger asChild>
-          <button type="button" className={buttonClass} title="Copy options">
+          <button ref={buttonRef} type="button" className={buttonClass} title="Copy options" data-copy-menu="true">
             {icon}
           </button>
         </DropdownMenu.Trigger>
@@ -106,7 +157,7 @@ export function CopyMenu({ text, className, iconClassName = 'w-3 h-3' }: CopyMen
           <DropdownMenu.Content className={menuContentClass} align="end" sideOffset={5}>
             <DropdownMenu.Label className={menuLabelClass}>Copy as</DropdownMenu.Label>
             <DropdownMenu.Separator className={menuSepClass} />
-            {FORMAT_OPTIONS.map(opt => (
+            {formats.map(opt => (
               <DropdownMenu.Item key={opt.key} className={menuItemClass} onSelect={() => handleSelect(opt.key)}>
                 <span className="text-sm font-medium text-foreground">{opt.label}</span>
                 <span className="text-[11px] text-muted-foreground">{opt.desc}</span>
@@ -123,9 +174,11 @@ export function CopyMenu({ text, className, iconClassName = 'w-3 h-3' }: CopyMen
     <ContextMenu.Root onOpenChange={open => open && handleOpen()}>
       <ContextMenu.Trigger asChild>
         <button
+          ref={buttonRef}
           type="button"
           className={buttonClass}
           title="Copy (right-click for options)"
+          data-copy-menu="true"
           onClick={e => {
             e.stopPropagation()
             haptic('tap')
@@ -139,7 +192,7 @@ export function CopyMenu({ text, className, iconClassName = 'w-3 h-3' }: CopyMen
         <ContextMenu.Content className={menuContentClass} alignOffset={5}>
           <ContextMenu.Label className={menuLabelClass}>Copy as</ContextMenu.Label>
           <ContextMenu.Separator className={menuSepClass} />
-          {FORMAT_OPTIONS.map(opt => (
+          {formats.map(opt => (
             <ContextMenu.Item key={opt.key} className={menuItemClass} onSelect={() => handleSelect(opt.key)}>
               <span className="text-xs font-medium text-foreground">{opt.label}</span>
               <span className="text-[10px] text-muted-foreground">{opt.desc}</span>

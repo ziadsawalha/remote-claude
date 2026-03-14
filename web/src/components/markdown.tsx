@@ -43,6 +43,27 @@ const marked = new Marked()
 // Custom renderer
 const renderer = new marked.Renderer()
 renderer.link = ({ href, text }) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`
+renderer.table = ({ header, rows, raw }) => {
+  // Store raw GFM source in a hidden div for markdown copy
+  const escapedRaw = raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  // Render header
+  let html = '<table><thead><tr>'
+  for (const cell of header) {
+    const align = cell.align ? ` style="text-align:${cell.align}"` : ''
+    html += `<th${align}>${cell.text}</th>`
+  }
+  html += '</tr></thead><tbody>'
+  for (const row of rows) {
+    html += '<tr>'
+    for (const cell of row) {
+      const align = cell.align ? ` style="text-align:${cell.align}"` : ''
+      html += `<td${align}>${cell.text}</td>`
+    }
+    html += '</tr>'
+  }
+  html += '</tbody></table>'
+  return `<div class="table-block">${html}<div class="table-source" style="display:none">${escapedRaw}</div></div>`
+}
 renderer.code = ({ text, lang }) => {
   const langClass = lang ? ` class="hljs language-${lang}"` : ' class="hljs"'
   let highlighted = text
@@ -135,5 +156,12 @@ export function Markdown({ children }: MarkdownProps) {
     })
   }, [])
 
-  return <div ref={ref} className="prose-hacker [overflow-wrap:anywhere]" dangerouslySetInnerHTML={{ __html: html }} onClick={handleClick} />
+  return (
+    <div
+      ref={ref}
+      className="prose-hacker [overflow-wrap:anywhere]"
+      dangerouslySetInnerHTML={{ __html: html }}
+      onClick={handleClick}
+    />
+  )
 }

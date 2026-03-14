@@ -41,6 +41,7 @@
     "date-fns": "latest",
     "fzf": "^0.5.2",
     "highlight.js": "^11.11.1",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^0.577.0",
     "marked": "^17.0.4",
     "marked-highlight": "^2.2.3",
