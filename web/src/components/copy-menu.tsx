@@ -76,15 +76,22 @@ import('html-to-image').then(mod => {
 async function copyAsImage(element: HTMLElement) {
   if (!toBlobFn) throw new Error('html-to-image not loaded yet')
 
-  // Apply capture styles via cssText to use !important (beats CSS class specificity)
-  const savedCssText = element.style.cssText
-  element.style.cssText += '; display: inline-block !important; width: fit-content !important; padding: 1em 1.25em !important;'
-
   const bgColor = getComputedStyle(document.body).backgroundColor || '#0a0a0a'
+
+  // Temporarily wrap the ORIGINAL element in a padded div for capture.
+  // html-to-image clones internally, and clones lose computed styles when
+  // placed elsewhere. Wrapping the original keeps all styles intact.
+  const wrapper = document.createElement('div')
+  wrapper.style.display = 'inline-block'
+  wrapper.style.padding = '1em 1.25em'
+  const parent = element.parentElement!
+  const next = element.nextSibling
+  parent.replaceChild(wrapper, element)
+  wrapper.appendChild(element)
 
   // Safari requires ClipboardItem creation within the user gesture context.
   // Pass the blob PROMISE directly - don't await it first.
-  const blobPromise = toBlobFn(element, {
+  const blobPromise = toBlobFn(wrapper, {
     pixelRatio: 2,
     backgroundColor: bgColor,
     filter: (node: HTMLElement) => {
@@ -98,8 +105,11 @@ async function copyAsImage(element: HTMLElement) {
     return blob
   })
 
-  // Restore immediately - toBlob reads dimensions synchronously
-  element.style.cssText = savedCssText
+  // Unwrap immediately - toBlob reads dimensions synchronously
+  wrapper.removeChild(element)
+  if (next) parent.insertBefore(element, next)
+  else parent.appendChild(element)
+  parent.removeChild(wrapper)
 
   await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })])
 }
