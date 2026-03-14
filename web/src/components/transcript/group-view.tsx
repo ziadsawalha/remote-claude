@@ -3,7 +3,6 @@
  * Includes task notification lines, compaction dividers, and the main group layout.
  */
 
-import { Check, Copy } from 'lucide-react'
 import { memo, useState } from 'react'
 import { useSessionsStore } from '@/hooks/use-sessions'
 import type { TranscriptContentBlock, TranscriptImage, TranscriptToolUseResult } from '@/lib/types'
@@ -18,6 +17,7 @@ interface RenderableTranscriptEntry {
   toolUseResult?: TranscriptToolUseResult
 }
 
+import { CopyMenu } from '../copy-menu'
 import { Markdown } from '../markdown'
 import { AgentTranscriptInline } from './agent-views'
 import type { DisplayGroup, TaskNotification } from './grouping'
@@ -86,26 +86,6 @@ type SubagentRef = Array<{
   eventCount: number
   tokenUsage?: { totalInput: number; totalOutput: number; cacheCreation: number; cacheRead: number }
 }>
-
-function CopyTextButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-
-  return (
-    <button
-      type="button"
-      className="absolute top-0 right-0 opacity-0 group-hover/text:opacity-60 hover:!opacity-100 sm:opacity-0 max-sm:opacity-30 transition-opacity text-muted-foreground p-0.5"
-      title="Copy text"
-      onClick={() => {
-        navigator.clipboard.writeText(text).then(() => {
-          setCopied(true)
-          setTimeout(() => setCopied(false), 1500)
-        })
-      }}
-    >
-      {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-    </button>
-  )
-}
 
 export function GroupView({
   group,
@@ -229,7 +209,10 @@ export function GroupView({
               return (
                 <div key={i} className="text-sm group/text relative">
                   <Markdown>{item.text}</Markdown>
-                  <CopyTextButton text={item.text} />
+                  <CopyMenu
+                    text={item.text}
+                    className="absolute top-0 right-0 opacity-0 group-hover/text:opacity-60 hover:!opacity-100 max-sm:opacity-30 transition-opacity"
+                  />
                 </div>
               )
             case 'images':
