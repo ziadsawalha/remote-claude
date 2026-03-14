@@ -90,7 +90,10 @@ export function CopyMenu({ text, className, iconClassName = 'w-3 h-3' }: CopyMen
   return (
     <ContextMenu.Root
       onOpenChange={open => {
-        if (open) haptic('double')
+        if (open) {
+          haptic('double')
+          window.getSelection()?.removeAllRanges()
+        }
       }}
     >
       <ContextMenu.Trigger asChild>
