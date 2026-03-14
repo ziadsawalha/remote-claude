@@ -14,8 +14,28 @@ const batch: (fn: () => void) => void = batchUpdates ?? (fn => fn())
 import type { SessionSummary } from '@shared/protocol'
 import { BUILD_VERSION } from '../../../src/shared/version'
 import type { HookEvent, Session, TaskInfo, TranscriptEntry } from '@/lib/types'
+import { haptic } from '@/lib/utils'
 import { applyHashRoute, handleBgTaskOutputMessage, type ProjectSettingsMap, useSessionsStore } from './use-sessions'
 import { recordIn, recordOut } from './ws-stats'
+
+// Throttled haptic feedback for live transcript/event updates.
+// Only fires for the currently selected session, max once per interval.
+let lastHapticMs = 0
+const HAPTIC_THROTTLE_MS = 800
+
+/** Reset haptic throttle so the next event fires immediately (call after user input) */
+export function resetHapticThrottle() {
+  lastHapticMs = 0
+}
+
+function liveHaptic(pattern: Parameters<typeof haptic>[0], sessionId?: string) {
+  const selected = useSessionsStore.getState().selectedSessionId
+  if (!selected || sessionId !== selected) return
+  const now = Date.now()
+  if (now - lastHapticMs < HAPTIC_THROTTLE_MS) return
+  lastHapticMs = now
+  haptic(pattern)
+}
 
 // Dashboard message from concentrator WS (loose type field for extensibility)
 interface DashboardMessage {
@@ -174,11 +194,17 @@ function processMessage(msg: DashboardMessage) {
             },
           }
         })
+        // Haptic on significant hook events
+        const he = msg.event!.hookEvent
+        if (he === 'SubagentStop' || he === 'TaskCompleted') liveHaptic('success', msg.sessionId)
+        else if (he === 'PreCompact') liveHaptic('double', msg.sessionId)
+        else if (he === 'Stop') liveHaptic('tap', msg.sessionId)
       }
       break
     }
     case 'transcript_entries': {
       if (msg.sessionId && msg.entries?.length) {
+        const isLive = !msg.isInitial
         useSessionsStore.setState(state => {
           const existing = state.transcripts[msg.sessionId!] || []
           return {
@@ -188,6 +214,20 @@ function processMessage(msg: DashboardMessage) {
             },
           }
         })
+        // Haptic feedback for live transcript updates (not historical loads)
+        if (isLive) {
+          const last = msg.entries![msg.entries!.length - 1]
+          if (last.type === 'assistant') {
+            const content = (last as any).message?.content
+            if (Array.isArray(content)) {
+              const hasToolResult = content.some((c: any) => c.type === 'tool_use')
+              const hasThinking = content.some((c: any) => c.type === 'thinking')
+              if (hasToolResult) liveHaptic('tap', msg.sessionId)
+              else if (hasThinking) liveHaptic('tick', msg.sessionId)
+              else liveHaptic('tick', msg.sessionId) // text response
+            }
+          }
+        }
       }
       break
     }
