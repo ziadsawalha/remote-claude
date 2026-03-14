@@ -244,8 +244,8 @@ export function MarkdownInput({
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     const ta = textareaRef.current
     // In expanded (mobile) mode: Enter = newline, no keyboard submit
-    // In inline (desktop) mode: Enter = submit, Shift+Enter = newline
-    if (!expanded && e.key === 'Enter' && !e.shiftKey) {
+    // In inline (desktop) mode: Enter = submit, Shift+Enter or Alt+Enter = newline
+    if (!expanded && e.key === 'Enter' && !e.shiftKey && !e.altKey) {
       e.preventDefault()
       handleSubmit()
     }
