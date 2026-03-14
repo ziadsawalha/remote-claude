@@ -896,6 +896,22 @@ export function createSessionStore(options: SessionStoreOptions = {}): SessionSt
         }
       }
 
+      // TaskStop kills a background agent without firing SubagentStop.
+      // Correlate by task_id (which is the agent_id) to mark it stopped.
+      if (event.hookEvent === 'PostToolUse' && event.data) {
+        const data = event.data as Record<string, unknown>
+        if (data.tool_name === 'TaskStop' && data.tool_input) {
+          const taskId = (data.tool_input as Record<string, unknown>).task_id as string | undefined
+          if (taskId) {
+            const agent = session.subagents.find(a => a.agentId === taskId && a.status === 'running')
+            if (agent) {
+              agent.status = 'stopped'
+              agent.stoppedAt = event.timestamp
+            }
+          }
+        }
+      }
+
       // Track background Bash commands
       if (event.hookEvent === 'PostToolUse' && event.data) {
         const data = event.data as Record<string, unknown>
