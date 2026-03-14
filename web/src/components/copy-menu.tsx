@@ -85,7 +85,7 @@ async function copyAsImage(element: HTMLElement) {
   }
   element.style.display = 'inline-block'
   element.style.width = 'fit-content'
-  element.style.padding = '16px 20px'
+  element.style.padding = '1em 1.25em'
 
   const bgColor = getComputedStyle(document.body).backgroundColor || '#0a0a0a'
 
