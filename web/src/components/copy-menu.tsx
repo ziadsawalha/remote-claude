@@ -71,28 +71,28 @@ async function copyAsImage(element: HTMLElement) {
   const { toBlob } = await import('html-to-image')
   const bgColor = getComputedStyle(document.body).backgroundColor || '#0a0a0a'
 
-  // html-to-image clones the node internally - no DOM mutation needed
-  const blob = await toBlob(element, {
+  // Safari requires ClipboardItem to be created synchronously within the user
+  // gesture. Pass the blob PROMISE directly - don't await it first.
+  const blobPromise = toBlob(element, {
     pixelRatio: 2,
     backgroundColor: bgColor,
     style: {
-      // Tight bounds on the clone only
       display: 'inline-block',
       width: 'fit-content',
       padding: '8px',
     },
     filter: (node: HTMLElement) => {
-      // Strip copy buttons and code-block copy from the capture
       if (node.dataset?.copyMenu === 'true') return false
       if (node.classList?.contains('code-copy-btn')) return false
       if (node.classList?.contains('table-source')) return false
       return true
     },
+  }).then(blob => {
+    if (!blob) throw new Error('toBlob returned null')
+    return blob
   })
 
-  if (blob) {
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
-  }
+  await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })])
 }
 
 // Shared menu styling
