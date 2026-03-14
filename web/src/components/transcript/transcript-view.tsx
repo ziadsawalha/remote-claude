@@ -4,11 +4,11 @@
  */
 
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useSessionsStore } from '@/hooks/use-sessions'
 import type { TranscriptEntry } from '@/lib/types'
 import { CompactedDivider, CompactingBanner, MemoizedGroupView } from './group-view'
-import { useIncrementalGroups } from './grouping'
+import { type DisplayGroup, useIncrementalGroups } from './grouping'
 
 interface TranscriptViewProps {
   entries: TranscriptEntry[]
@@ -30,6 +30,17 @@ export function TranscriptView({
 
   const { resultMap, groups } = useIncrementalGroups(entries)
 
+  // Split: queued groups float at the bottom, non-queued in the virtualizer
+  const { mainGroups, queuedGroups } = useMemo(() => {
+    const main: DisplayGroup[] = []
+    const queued: DisplayGroup[] = []
+    for (const g of groups) {
+      if (g.queued) queued.push(g)
+      else main.push(g)
+    }
+    return { mainGroups: main, queuedGroups: queued }
+  }, [groups])
+
   // Lift subagents selector here (once) instead of per-GroupView (N times)
   const subagents = useSessionsStore(state => {
     const session = state.sessions.find(s => s.id === state.selectedSessionId)
@@ -37,12 +48,12 @@ export function TranscriptView({
   })
 
   const virtualizer = useVirtualizer({
-    count: groups.length,
+    count: mainGroups.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 150,
     overscan: 10,
     getItemKey: index => {
-      const g = groups[index]
+      const g = mainGroups[index]
       return `${g.type}-${g.timestamp}-${index}`
     },
     observeElementRect: (instance, cb) => {
@@ -122,7 +133,7 @@ export function TranscriptView({
     scrollToBottom()
   }, [follow, entries.length, scrollToBottom])
 
-  if (groups.length === 0) {
+  if (mainGroups.length === 0 && queuedGroups.length === 0) {
     return (
       <div className="text-muted-foreground text-center py-10 font-mono">
         <pre className="text-xs">
@@ -160,7 +171,7 @@ export function TranscriptView({
             }}
           >
             {(() => {
-              const group = groups[virtualItem.index]
+              const group = mainGroups[virtualItem.index]
               if (group.type === 'compacted') return <CompactedDivider />
               if (group.type === 'compacting') return <CompactingBanner />
               return (
@@ -175,6 +186,20 @@ export function TranscriptView({
           </div>
         ))}
       </div>
+      {/* Queued messages: sticky at the bottom until consumed */}
+      {queuedGroups.length > 0 && (
+        <div className="sticky bottom-0 z-10 pb-2 pt-3 -mx-3 sm:-mx-4 px-3 sm:px-4 bg-gradient-to-t from-background via-background to-transparent">
+          {queuedGroups.map((group, i) => (
+            <MemoizedGroupView
+              key={`queued-${group.timestamp}-${i}`}
+              group={group}
+              resultMap={resultMap}
+              showThinking={showThinking}
+              subagents={subagents}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
