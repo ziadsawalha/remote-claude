@@ -98,22 +98,32 @@ export function TranscriptView({
     return () => el.removeEventListener('scroll', handleScroll)
   }, [follow, onReachedBottom])
 
+  // Scroll to bottom using virtualizer.scrollToIndex for reliable measurement-aware scrolling.
+  // Falls back to raw scrollTop for the settle loop (handles dynamic item heights expanding).
   const scrollToBottom = useCallback(() => {
+    if (followKilledRef.current) return
+    const count = mainGroups.length
+    if (count > 0) {
+      virtualizer.scrollToIndex(count - 1, { align: 'end' })
+    }
+    // Settle loop: virtualizer.scrollToIndex positions based on estimated sizes.
+    // After items render and measure, scrollHeight may grow. Retry raw scrollTop
+    // to catch the final measured height.
     const el = parentRef.current
-    if (!el || followKilledRef.current) return
+    if (!el) return
     let lastHeight = -1
     let retries = 0
     function settle() {
       if (!el || followKilledRef.current) return
       el.scrollTop = el.scrollHeight
-      if (el.scrollHeight !== lastHeight && retries < 10) {
+      if (el.scrollHeight !== lastHeight && retries < 8) {
         lastHeight = el.scrollHeight
         retries++
         requestAnimationFrame(settle)
       }
     }
     requestAnimationFrame(settle)
-  }, [])
+  }, [mainGroups.length, virtualizer])
 
   // Subscribe to newDataSeq without triggering re-renders - only used for scroll-to-bottom
   const followRef = useRef(follow)
@@ -128,9 +138,12 @@ export function TranscriptView({
     })
   }, [scrollToBottom])
 
+  // Scroll to bottom on initial mount, follow toggle, and entry count changes
   useEffect(() => {
     if (!follow) return
-    scrollToBottom()
+    // Delay slightly to allow virtualizer to process new items and measure
+    const timer = setTimeout(scrollToBottom, 50)
+    return () => clearTimeout(timer)
   }, [follow, entries.length, scrollToBottom])
 
   if (mainGroups.length === 0 && queuedGroups.length === 0) {

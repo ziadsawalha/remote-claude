@@ -141,6 +141,11 @@ export function SessionDetail() {
   const selectedSessionId = useSessionsStore(state => state.selectedSessionId)
   const expandAll = useSessionsStore(state => state.expandAll)
 
+  // Reset follow to true on session switch so transcript scrolls to bottom
+  useEffect(() => {
+    setFollow(true)
+  }, [selectedSessionId])
+
   // Apply requested tab - fires on selectSession (always 'transcript'), openTab, and badge clicks
   // requestedTabSeq ensures re-clicks on the same session still trigger
   useEffect(() => {
