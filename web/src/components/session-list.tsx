@@ -231,71 +231,44 @@ function SessionItem({ session }: { session: Session }) {
 // Sortable wrapper for a single pinned CWD entry
 function SortableOrganizedItem({ cwd, sessions }: { cwd: string; sessions: Session[] }) {
   const projectSettings = useSessionsStore(s => s.projectSettings)
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
-    id: cwd,
-  })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
   const ps = projectSettings[cwd]
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
-  const content =
-    sessions.length === 1 ? (
-      <SessionItem session={sessions[0]} />
-    ) : (
-      <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
-    )
-
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="flex items-stretch">
-      <div
-        ref={setActivatorNodeRef}
-        {...listeners}
-        className="w-4 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 touch-none"
-        title="Drag to reorder"
-      >
-        <span className="text-[8px] leading-none">{'\u2807'}</span>
-      </div>
-      <div className="flex-1 min-w-0">{content}</div>
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      className="touch-none"
+    >
+      {sessions.length === 1 ? (
+        <SessionItem session={sessions[0]} />
+      ) : (
+        <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
+      )}
     </div>
   )
 }
 
-// Draggable wrapper for unorganized sessions (drag into organized to pin)
 function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Session[] }) {
   const projectSettings = useSessionsStore(s => s.projectSettings)
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
-    id: cwd,
-  })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
   const ps = projectSettings[cwd]
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  }
-
-  const content =
-    sessions.length === 1 ? (
-      <SessionItem session={sessions[0]} />
-    ) : (
-      <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
-    )
-
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="flex items-stretch">
-      <div
-        ref={setActivatorNodeRef}
-        {...listeners}
-        className="w-4 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 touch-none"
-        title="Drag to organize"
-      >
-        <span className="text-[8px] leading-none">{'\u2807'}</span>
-      </div>
-      <div className="flex-1 min-w-0">{content}</div>
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      className="touch-none"
+    >
+      {sessions.length === 1 ? (
+        <SessionItem session={sessions[0]} />
+      ) : (
+        <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
+      )}
     </div>
   )
 }
