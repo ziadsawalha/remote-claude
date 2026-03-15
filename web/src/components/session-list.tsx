@@ -377,16 +377,29 @@ function SortableOrganizedItem({
     opacity: isDragging ? 0.5 : 1,
   }
 
+  // Drag handle lives OUTSIDE the context menu trigger so they don't conflict
+  const dragHandle = (
+    <div
+      {...listeners}
+      className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 touch-none"
+      title="Drag to reorder"
+    >
+      <span className="text-[10px]">{'\u2801\u2801\n\u2801\u2801'}</span>
+    </div>
+  )
+
   if (sessions.length === 1) {
     return (
-      <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
+        {dragHandle}
         <SessionItem session={sessions[0]} isPinned currentGroup={currentGroup} existingGroups={existingGroups} />
       </div>
     )
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
+      {dragHandle}
       <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
     </div>
   )
