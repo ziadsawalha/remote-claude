@@ -213,7 +213,7 @@ function SessionItem({ session }: { session: Session }) {
 
   return (
     <div>
-      <div className="relative pl-5">
+      <div className="relative">
         <SessionItemContent session={session} />
         <div className="absolute top-2 right-2">
           <ProjectSettingsButton
@@ -243,31 +243,24 @@ function SortableOrganizedItem({ cwd, sessions }: { cwd: string; sessions: Sessi
     opacity: isDragging ? 0.5 : 1,
   }
 
-  // Drag handle lives OUTSIDE the context menu trigger so they don't conflict
-  const dragHandle = (
-    <div
-      ref={setActivatorNodeRef}
-      {...listeners}
-      className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 touch-none z-10"
-      title="Drag to reorder"
-    >
-      <span className="text-[10px]">{'\u2801\u2801\n\u2801\u2801'}</span>
-    </div>
-  )
-
-  if (sessions.length === 1) {
-    return (
-      <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
-        {dragHandle}
-        <SessionItem session={sessions[0]} />
-      </div>
+  const content =
+    sessions.length === 1 ? (
+      <SessionItem session={sessions[0]} />
+    ) : (
+      <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
     )
-  }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
-      {dragHandle}
-      <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
+    <div ref={setNodeRef} style={style} {...attributes} className="flex items-stretch">
+      <div
+        ref={setActivatorNodeRef}
+        {...listeners}
+        className="w-4 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 touch-none"
+        title="Drag to reorder"
+      >
+        <span className="text-[8px] leading-none">{'\u2807'}</span>
+      </div>
+      <div className="flex-1 min-w-0">{content}</div>
     </div>
   )
 }
@@ -286,30 +279,24 @@ function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Sessio
     opacity: isDragging ? 0.5 : 1,
   }
 
-  const dragHandle = (
-    <div
-      ref={setActivatorNodeRef}
-      {...listeners}
-      className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 touch-none z-10"
-      title="Drag to organize"
-    >
-      <span className="text-[10px]">{'\u2801\u2801'}</span>
-    </div>
-  )
-
-  if (sessions.length === 1) {
-    return (
-      <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
-        {dragHandle}
-        <SessionItem session={sessions[0]} />
-      </div>
+  const content =
+    sessions.length === 1 ? (
+      <SessionItem session={sessions[0]} />
+    ) : (
+      <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
     )
-  }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
-      {dragHandle}
-      <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
+    <div ref={setNodeRef} style={style} {...attributes} className="flex items-stretch">
+      <div
+        ref={setActivatorNodeRef}
+        {...listeners}
+        className="w-4 shrink-0 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 touch-none"
+        title="Drag to organize"
+      >
+        <span className="text-[8px] leading-none">{'\u2807'}</span>
+      </div>
+      <div className="flex-1 min-w-0">{content}</div>
     </div>
   )
 }
