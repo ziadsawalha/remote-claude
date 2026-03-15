@@ -405,6 +405,45 @@ function SortableOrganizedItem({
   )
 }
 
+// Draggable wrapper for unorganized sessions (drag into organized to pin)
+function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Session[] }) {
+  const projectSettings = useSessionsStore(s => s.projectSettings)
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
+  const ps = projectSettings[cwd]
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const dragHandle = (
+    <div
+      {...listeners}
+      className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 touch-none"
+      title="Drag to organize"
+    >
+      <span className="text-[10px]">{'\u2801\u2801'}</span>
+    </div>
+  )
+
+  if (sessions.length === 1) {
+    return (
+      <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
+        {dragHandle}
+        <SessionItem session={sessions[0]} />
+      </div>
+    )
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
+      {dragHandle}
+      <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
+    </div>
+  )
+}
+
 // Drop target for creating a new group (only visible while dragging)
 function NewGroupDropTarget() {
   const { isOver, setNodeRef } = useDroppable({ id: '__new_group__' })
@@ -418,6 +457,23 @@ function NewGroupDropTarget() {
       )}
     >
       + new group
+    </div>
+  )
+}
+
+// Drop target for unorganizing (only visible while dragging)
+function UnorganizedDropTarget() {
+  const { isOver, setNodeRef } = useDroppable({ id: '__unorganized__' })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'border-2 border-dashed rounded py-2 px-3 text-center text-[11px] font-mono transition-colors',
+        isOver ? 'border-red-400/60 text-red-400 bg-red-400/10' : 'border-border/50 text-muted-foreground/50',
+      )}
+    >
+      unpin
     </div>
   )
 }
@@ -584,30 +640,10 @@ export function SessionList() {
   const sortedUnpinned = [...unpinnedActive].sort((a, b) => b.startedAt - a.startedAt)
   const sortedInactive = [...inactive].sort((a, b) => b.startedAt - a.startedAt)
 
-  function renderUnorganizedGrouped(list: Session[]) {
-    const groups = new Map<string, Session[]>()
-    for (const s of list) {
-      const ps = projectSettings[s.cwd]
-      const key = ps?.label || s.cwd
-      const group = groups.get(key) || []
-      group.push(s)
-      groups.set(key, group)
-    }
-    return Array.from(groups.entries()).map(([name, groupSessions]) => {
-      if (groupSessions.length === 1) {
-        return <SessionItem key={groupSessions[0].id} session={groupSessions[0]} existingGroups={existingGroups} />
-      }
-      const ps = projectSettings[groupSessions[0].cwd]
-      return (
-        <SessionCwdGroup
-          key={name}
-          sessions={groupSessions}
-          name={ps?.label || lastPathSegments(groupSessions[0].cwd)}
-          ps={ps}
-        />
-      )
-    })
-  }
+  // All draggable CWDs (organized + unorganized)
+  const allDraggableCwds = [...allOrganizedCwds, ...sortedUnpinned.map(s => s.cwd).filter(cwd => !pinnedCwds.has(cwd))]
+  // Deduplicate (multiple sessions can share a CWD)
+  const uniqueDraggableCwds = [...new Set(allDraggableCwds)]
 
   function handleDragEnd(event: DragEndEvent) {
     setIsDragging(false)
@@ -615,29 +651,64 @@ export function SessionList() {
     if (!over || active.id === over.id) return
     haptic('tick')
 
-    // Dropping on "new group" target
+    const draggedCwd = active.id as string
+    const isCurrentlyPinned = pinnedCwds.has(draggedCwd)
+
+    // Drop on "new group" target -> pin + create group
     if (over.id === '__new_group__') {
       const name = window.prompt('Group name:')
       if (!name?.trim()) return
-      const newOrganized = sessionOrder.organized.map(e => (e.cwd === active.id ? { ...e, group: name.trim() } : e))
+      let newOrganized = [...sessionOrder.organized]
+      if (isCurrentlyPinned) {
+        newOrganized = newOrganized.map(e => (e.cwd === draggedCwd ? { ...e, group: name.trim() } : e))
+      } else {
+        newOrganized.push({ cwd: draggedCwd, group: name.trim() })
+      }
       useSessionsStore.getState().setSessionOrder({ organized: newOrganized })
       updateSessionOrder('set', { organized: newOrganized })
       return
     }
 
-    // Reorder within organized list
-    const oldIndex = sessionOrder.organized.findIndex(e => e.cwd === active.id)
-    const newIndex = sessionOrder.organized.findIndex(e => e.cwd === over.id)
-    if (oldIndex === -1 || newIndex === -1) return
+    // Drop on "unorganized" zone -> unpin
+    if (over.id === '__unorganized__') {
+      if (isCurrentlyPinned) {
+        const newOrganized = sessionOrder.organized.filter(e => e.cwd !== draggedCwd)
+        useSessionsStore.getState().setSessionOrder({ organized: newOrganized })
+        updateSessionOrder('set', { organized: newOrganized })
+      }
+      return
+    }
 
-    const newOrganized = [...sessionOrder.organized]
-    const [moved] = newOrganized.splice(oldIndex, 1)
-    // Inherit the group of the drop target
-    const targetGroup = newOrganized[Math.min(newIndex, newOrganized.length - 1)]?.group
-    moved.group = targetGroup
-    newOrganized.splice(newIndex, 0, moved)
-    useSessionsStore.getState().setSessionOrder({ organized: newOrganized })
-    updateSessionOrder('set', { organized: newOrganized })
+    // Drop on another session
+    const overCwd = over.id as string
+    const overIsPinned = pinnedCwds.has(overCwd)
+
+    if (overIsPinned) {
+      // Dropping onto an organized item -> pin (if not already) and reorder
+      const newOrganized = [...sessionOrder.organized]
+      const targetGroup = newOrganized.find(e => e.cwd === overCwd)?.group
+
+      if (isCurrentlyPinned) {
+        // Reorder within organized
+        const oldIndex = newOrganized.findIndex(e => e.cwd === draggedCwd)
+        const newIndex = newOrganized.findIndex(e => e.cwd === overCwd)
+        if (oldIndex === -1 || newIndex === -1) return
+        const [moved] = newOrganized.splice(oldIndex, 1)
+        moved.group = targetGroup
+        newOrganized.splice(newIndex, 0, moved)
+      } else {
+        // Pin and insert at the target position
+        const newIndex = newOrganized.findIndex(e => e.cwd === overCwd)
+        newOrganized.splice(newIndex, 0, { cwd: draggedCwd, group: targetGroup })
+      }
+      useSessionsStore.getState().setSessionOrder({ organized: newOrganized })
+      updateSessionOrder('set', { organized: newOrganized })
+    } else if (isCurrentlyPinned) {
+      // Dropping organized onto unorganized -> unpin
+      const newOrganized = sessionOrder.organized.filter(e => e.cwd !== draggedCwd)
+      useSessionsStore.getState().setSessionOrder({ organized: newOrganized })
+      updateSessionOrder('set', { organized: newOrganized })
+    }
   }
 
   if (sessions.length === 0) {
@@ -657,27 +728,25 @@ export function SessionList() {
 
   return (
     <div className="space-y-2">
-      {/* Organized section with groups */}
-      {hasOrganized && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={() => setIsDragging(true)}
-          onDragEnd={handleDragEnd}
-          onDragCancel={() => setIsDragging(false)}
-        >
-          <SortableContext items={allOrganizedCwds} strategy={verticalListSortingStrategy}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={() => setIsDragging(true)}
+        onDragEnd={handleDragEnd}
+        onDragCancel={() => setIsDragging(false)}
+      >
+        <SortableContext items={uniqueDraggableCwds} strategy={verticalListSortingStrategy}>
+          {/* Organized section with groups */}
+          {hasOrganized && (
             <div className="space-y-2">
               {organizedByGroup.map(group => (
                 <div key={group.name || '__default__'}>
-                  {/* Group header */}
                   <div className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1 flex items-center gap-1.5">
                     <span className={group.name ? 'text-primary/60' : 'text-amber-400/70'}>
                       {group.name ? `\u25B8 ${group.name}` : '\u2605 Organized'}
                     </span>
                     <span className="flex-1 h-px bg-border/50" />
                   </div>
-                  {/* Sessions in this group */}
                   <div className="space-y-1">
                     {group.entries.map(entry => (
                       <SortableOrganizedItem
@@ -692,29 +761,44 @@ export function SessionList() {
                 </div>
               ))}
             </div>
-          </SortableContext>
+          )}
 
-          {/* New group drop target - only visible while dragging */}
+          {/* Drop targets while dragging */}
           {isDragging && (
-            <div className="mt-2">
+            <div className="mt-2 space-y-1">
               <NewGroupDropTarget />
+              {hasOrganized && <UnorganizedDropTarget />}
             </div>
           )}
-        </DndContext>
-      )}
 
-      {/* Unorganized section */}
-      {sortedUnpinned.length > 0 && (
-        <div>
-          {hasOrganized && (
-            <div className="text-[10px] text-muted-foreground/50 font-bold uppercase tracking-wider px-1 mb-1 flex items-center gap-2">
-              <span>Unorganized</span>
-              <span className="flex-1 h-px bg-border" />
+          {/* Unorganized section */}
+          {sortedUnpinned.length > 0 && (
+            <div>
+              {hasOrganized && (
+                <div className="text-[10px] text-muted-foreground/50 font-bold uppercase tracking-wider px-1 mb-1 flex items-center gap-2">
+                  <span>Unorganized</span>
+                  <span className="flex-1 h-px bg-border" />
+                </div>
+              )}
+              <div className="space-y-1">
+                {sortedUnpinned
+                  .filter((s, i, arr) => arr.findIndex(x => x.cwd === s.cwd) === i)
+                  .map(s => {
+                    const cwdSessions = sessionsByCwd.get(s.cwd) || [s]
+                    const unpinnedSessions = cwdSessions.filter(x => x.status === 'active' || x.status === 'idle')
+                    return (
+                      <DraggableSessionItem
+                        key={s.cwd}
+                        cwd={s.cwd}
+                        sessions={unpinnedSessions.length > 0 ? unpinnedSessions : [s]}
+                      />
+                    )
+                  })}
+              </div>
             </div>
           )}
-          <div className="space-y-1">{renderUnorganizedGrouped(sortedUnpinned)}</div>
-        </div>
-      )}
+        </SortableContext>
+      </DndContext>
 
       {/* Inactive section */}
       {inactive.length > 0 && (
