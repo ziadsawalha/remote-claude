@@ -229,7 +229,7 @@ function SessionItem({ session }: { session: Session }) {
 }
 
 // Sortable wrapper for a single pinned CWD entry
-function SortableOrganizedItem({ cwd, sessions }: { cwd: string; sessions: Session[] }) {
+function SortableSessionCard({ cwd, sessions, showGrip }: { cwd: string; sessions: Session[]; showGrip?: boolean }) {
   const projectSettings = useSessionsStore(s => s.projectSettings)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
   const ps = projectSettings[cwd]
@@ -240,35 +240,24 @@ function SortableOrganizedItem({ cwd, sessions }: { cwd: string; sessions: Sessi
       {...attributes}
       {...listeners}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-      className="touch-none"
+      className={cn('touch-none flex items-stretch', isDragging && 'z-10')}
     >
-      {sessions.length === 1 ? (
-        <SessionItem session={sessions[0]} />
-      ) : (
-        <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
-      )}
-    </div>
-  )
-}
-
-function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Session[] }) {
-  const projectSettings = useSessionsStore(s => s.projectSettings)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
-  const ps = projectSettings[cwd]
-
-  return (
-    <div
-      ref={setNodeRef}
-      {...attributes}
-      {...listeners}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
-      className="touch-none"
-    >
-      {sessions.length === 1 ? (
-        <SessionItem session={sessions[0]} />
-      ) : (
-        <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
-      )}
+      {/* Visual grip indicator - no listeners, just CSS */}
+      <div
+        className={cn(
+          'w-3 shrink-0 flex items-center justify-center select-none cursor-grab active:cursor-grabbing transition-opacity',
+          showGrip ? 'text-muted-foreground/40' : 'text-muted-foreground/20',
+        )}
+      >
+        <span className="text-[9px] leading-none">{'\u2807'}</span>
+      </div>
+      <div className="flex-1 min-w-0">
+        {sessions.length === 1 ? (
+          <SessionItem session={sessions[0]} />
+        ) : (
+          <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
+        )}
+      </div>
     </div>
   )
 }
@@ -571,7 +560,7 @@ export function SessionList() {
                   </div>
                   <div className="space-y-1">
                     {group.entries.map(entry => (
-                      <SortableOrganizedItem key={entry.cwd} cwd={entry.cwd} sessions={entry.sessions} />
+                      <SortableSessionCard key={entry.cwd} cwd={entry.cwd} sessions={entry.sessions} showGrip />
                     ))}
                   </div>
                 </div>
@@ -603,7 +592,7 @@ export function SessionList() {
                     const cwdSessions = sessionsByCwd.get(s.cwd) || [s]
                     const unpinnedSessions = cwdSessions.filter(x => x.status === 'active' || x.status === 'idle')
                     return (
-                      <DraggableSessionItem
+                      <SortableSessionCard
                         key={s.cwd}
                         cwd={s.cwd}
                         sessions={unpinnedSessions.length > 0 ? unpinnedSessions : [s]}
