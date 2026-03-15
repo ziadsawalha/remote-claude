@@ -396,10 +396,9 @@ function InactiveProjectItem({ sessions }: { sessions: Session[] }) {
   }
 
   return (
-    <button
-      type="button"
+    <div
       onClick={handleClick}
-      className="w-full text-left border border-border hover:border-primary p-2 pl-3 transition-colors"
+      className="w-full text-left border border-border hover:border-primary p-2 pl-3 transition-colors cursor-pointer"
       style={displayColor ? { borderLeftColor: displayColor, borderLeftWidth: '3px' } : undefined}
       title={`${sessions.length} session${sessions.length > 1 ? 's' : ''}\n${latest.cwd}`}
     >
@@ -419,7 +418,7 @@ function InactiveProjectItem({ sessions }: { sessions: Session[] }) {
           {formatAge(latest.lastActivity)}
         </span>
       </div>
-    </button>
+    </div>
   )
 }
 
