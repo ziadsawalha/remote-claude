@@ -368,7 +368,7 @@ function SortableOrganizedItem({
   existingGroups: string[]
 }) {
   const projectSettings = useSessionsStore(s => s.projectSettings)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
   const ps = projectSettings[cwd]
 
   const style = {
@@ -380,8 +380,9 @@ function SortableOrganizedItem({
   // Drag handle lives OUTSIDE the context menu trigger so they don't conflict
   const dragHandle = (
     <div
+      ref={setActivatorNodeRef}
       {...listeners}
-      className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 touch-none"
+      className="absolute -left-1 top-0 bottom-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 touch-none z-10"
       title="Drag to reorder"
     >
       <span className="text-[10px]">{'\u2801\u2801\n\u2801\u2801'}</span>
@@ -390,7 +391,7 @@ function SortableOrganizedItem({
 
   if (sessions.length === 1) {
     return (
-      <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
+      <div ref={setNodeRef} style={style} {...attributes} className="relative">
         {dragHandle}
         <SessionItem session={sessions[0]} isPinned currentGroup={currentGroup} existingGroups={existingGroups} />
       </div>
@@ -398,7 +399,7 @@ function SortableOrganizedItem({
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
+    <div ref={setNodeRef} style={style} {...attributes} className="relative">
       {dragHandle}
       <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
     </div>
@@ -408,7 +409,7 @@ function SortableOrganizedItem({
 // Draggable wrapper for unorganized sessions (drag into organized to pin)
 function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Session[] }) {
   const projectSettings = useSessionsStore(s => s.projectSettings)
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: cwd })
   const ps = projectSettings[cwd]
 
   const style = {
@@ -419,8 +420,9 @@ function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Sessio
 
   const dragHandle = (
     <div
+      ref={setActivatorNodeRef}
       {...listeners}
-      className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 touch-none"
+      className="absolute -left-1 top-0 bottom-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 touch-none z-10"
       title="Drag to organize"
     >
       <span className="text-[10px]">{'\u2801\u2801'}</span>
@@ -429,7 +431,7 @@ function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Sessio
 
   if (sessions.length === 1) {
     return (
-      <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
+      <div ref={setNodeRef} style={style} {...attributes} className="relative">
         {dragHandle}
         <SessionItem session={sessions[0]} />
       </div>
@@ -437,7 +439,7 @@ function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Sessio
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
+    <div ref={setNodeRef} style={style} {...attributes} className="relative">
       {dragHandle}
       <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
     </div>
