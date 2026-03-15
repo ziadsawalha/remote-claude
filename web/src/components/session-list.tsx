@@ -3,7 +3,6 @@ import {
   DndContext,
   type DragEndEvent,
   PointerSensor,
-  TouchSensor,
   useDroppable,
   useSensor,
   useSensors,
@@ -214,7 +213,7 @@ function SessionItem({ session }: { session: Session }) {
 
   return (
     <div>
-      <div className="relative">
+      <div className="relative pl-5">
         <SessionItemContent session={session} />
         <div className="absolute top-2 right-2">
           <ProjectSettingsButton
@@ -249,7 +248,7 @@ function SortableOrganizedItem({ cwd, sessions }: { cwd: string; sessions: Sessi
     <div
       ref={setActivatorNodeRef}
       {...listeners}
-      className="absolute -left-1 top-0 bottom-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 touch-none z-10"
+      className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground/60 touch-none z-10"
       title="Drag to reorder"
     >
       <span className="text-[10px]">{'\u2801\u2801\n\u2801\u2801'}</span>
@@ -258,7 +257,7 @@ function SortableOrganizedItem({ cwd, sessions }: { cwd: string; sessions: Sessi
 
   if (sessions.length === 1) {
     return (
-      <div ref={setNodeRef} style={style} {...attributes} className="relative">
+      <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
         {dragHandle}
         <SessionItem session={sessions[0]} />
       </div>
@@ -266,7 +265,7 @@ function SortableOrganizedItem({ cwd, sessions }: { cwd: string; sessions: Sessi
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="relative">
+    <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
       {dragHandle}
       <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
     </div>
@@ -291,7 +290,7 @@ function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Sessio
     <div
       ref={setActivatorNodeRef}
       {...listeners}
-      className="absolute -left-1 top-0 bottom-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 touch-none z-10"
+      className="absolute left-0 top-0 bottom-0 w-5 flex items-center justify-center cursor-grab active:cursor-grabbing text-muted-foreground/20 hover:text-muted-foreground/50 touch-none z-10"
       title="Drag to organize"
     >
       <span className="text-[10px]">{'\u2801\u2801'}</span>
@@ -300,7 +299,7 @@ function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Sessio
 
   if (sessions.length === 1) {
     return (
-      <div ref={setNodeRef} style={style} {...attributes} className="relative">
+      <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
         {dragHandle}
         <SessionItem session={sessions[0]} />
       </div>
@@ -308,7 +307,7 @@ function DraggableSessionItem({ cwd, sessions }: { cwd: string; sessions: Sessio
   }
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} className="relative">
+    <div ref={setNodeRef} style={style} {...attributes} className="relative pl-5">
       {dragHandle}
       <SessionCwdGroup sessions={sessions} name={ps?.label || lastPathSegments(cwd)} ps={ps} />
     </div>
@@ -472,10 +471,8 @@ export function SessionList() {
     return () => clearInterval(t)
   }, [])
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
-  )
+  // PointerSensor handles both mouse AND touch - don't add TouchSensor (conflicts)
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   // Build organized vs unorganized lists (keyed by CWD)
   const pinnedCwds = new Set(sessionOrder.organized.map(e => e.cwd))
