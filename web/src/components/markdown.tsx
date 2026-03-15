@@ -46,18 +46,18 @@ renderer.link = ({ href, text }) => `<a href="${href}" target="_blank" rel="noop
 renderer.table = ({ header, rows, raw }) => {
   // Store raw GFM source in a hidden div for markdown copy
   const escapedRaw = raw.replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  // Render header
+  // Render header - parseInline renders bold/italic/code/links in cells
   let html = '<table><thead><tr>'
   for (const cell of header) {
     const align = cell.align ? ` style="text-align:${cell.align}"` : ''
-    html += `<th${align}>${cell.text}</th>`
+    html += `<th${align}>${marked.parseInline(cell.text)}</th>`
   }
   html += '</tr></thead><tbody>'
   for (const row of rows) {
     html += '<tr>'
     for (const cell of row) {
       const align = cell.align ? ` style="text-align:${cell.align}"` : ''
-      html += `<td${align}>${cell.text}</td>`
+      html += `<td${align}>${marked.parseInline(cell.text)}</td>`
     }
     html += '</tr>'
   }
