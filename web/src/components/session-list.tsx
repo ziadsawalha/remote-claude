@@ -395,6 +395,14 @@ export function SessionList() {
   const dashPrefs = useSessionsStore(s => s.dashboardPrefs)
   const [showInactive, setShowInactive] = useState(dashPrefs.showInactiveByDefault)
   const [isDragging, setIsDragging] = useState(false)
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('collapsed-groups')
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
   const [, setTick] = useState(0)
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 30_000)
@@ -523,21 +531,49 @@ export function SessionList() {
           {/* Organized section with groups */}
           {hasOrganized && (
             <div className="space-y-2">
-              {organizedByGroup.map(group => (
-                <div key={group.name || '__default__'}>
-                  <div className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1 flex items-center gap-1.5">
-                    <span className={group.name ? 'text-primary/60' : 'text-amber-400/70'}>
-                      {group.name ? `\u25B8 ${group.name}` : '\u2605 Organized'}
-                    </span>
-                    <span className="flex-1 h-px bg-border/50" />
+              {organizedByGroup.map(group => {
+                const groupKey = group.name || '__default__'
+                const isCollapsed = collapsedGroups.has(groupKey)
+                return (
+                  <div key={groupKey}>
+                    <div
+                      className="text-[10px] font-bold uppercase tracking-wider px-1 mb-1 flex items-center gap-1.5 cursor-pointer select-none"
+                      onClick={() => {
+                        haptic('tick')
+                        setCollapsedGroups(prev => {
+                          const next = new Set(prev)
+                          if (next.has(groupKey)) next.delete(groupKey)
+                          else next.add(groupKey)
+                          localStorage.setItem('collapsed-groups', JSON.stringify([...next]))
+                          return next
+                        })
+                      }}
+                    >
+                      <span className={group.name ? 'text-primary/60' : 'text-amber-400/70'}>
+                        {group.name ? `${isCollapsed ? '\u25B8' : '\u25BE'} ${group.name}` : `\u2605 Organized`}
+                      </span>
+                      {isCollapsed && (
+                        <span className="text-muted-foreground/40 font-normal normal-case">
+                          ({group.entries.length})
+                        </span>
+                      )}
+                      <span className="flex-1 h-px bg-border/50" />
+                      {!group.name && (
+                        <span className="text-muted-foreground/40 font-normal">
+                          {isCollapsed ? '\u25B8' : '\u25BE'}
+                        </span>
+                      )}
+                    </div>
+                    {!isCollapsed && (
+                      <div className="space-y-1">
+                        {group.entries.map(entry => (
+                          <SortableSessionCard key={entry.cwd} cwd={entry.cwd} sessions={entry.sessions} showGrip />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-1">
-                    {group.entries.map(entry => (
-                      <SortableSessionCard key={entry.cwd} cwd={entry.cwd} sessions={entry.sessions} showGrip />
-                    ))}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
