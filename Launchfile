@@ -40,6 +40,35 @@ env:
     default: "$secrets.rclaude_secret"
     sensitive: true
     description: "Broker reads this when --rclaude-secret is not passed"
+  # WebAuthn relying-party ID + allowed origin (also the Web-Push VAPID subject).
+  # The broker reads these from env when --rp-id / --origin aren't passed, so a
+  # deploy that runs the image's baked-in CMD is configured entirely from here.
+  # $app tokens resolve to the deployment's real public URL, so this is portable
+  # across hosts with no hand-editing.
+  RP_ID:
+    default: "$app.authority"
+    description: "WebAuthn relying-party ID — the public host without scheme"
+  ORIGIN:
+    default: "$app.url"
+    description: "WebAuthn allowed origin + Web-Push VAPID subject (https:// URL)"
+  # Optional feature keys — provided by the operator's secret store, not baked in.
+  # Declared so the deployer applies them and doesn't warn about compose env it
+  # would otherwise silently drop. Absent keys just disable that feature.
+  VAPID_PUBLIC_KEY:
+    sensitive: true
+    description: "Web-Push VAPID public key (enables browser push when set with the private key)"
+  VAPID_PRIVATE_KEY:
+    sensitive: true
+    description: "Web-Push VAPID private key"
+  DEEPGRAM_API_KEY:
+    sensitive: true
+    description: "Deepgram key for voice transcription (optional)"
+  OPENAI_API_KEY:
+    sensitive: true
+    description: "OpenAI key (optional AI features)"
+  OPENROUTER_API_KEY:
+    sensitive: true
+    description: "OpenRouter key (optional AI features)"
 
 # Persists SQLite stores, passkey credentials, and transcripts. The image's
 # CMD points --cache-dir at /data/cache and --allow-root at /data/transcripts.
