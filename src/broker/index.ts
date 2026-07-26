@@ -240,6 +240,14 @@ function parseArgs(): Args {
 
   // Env fallbacks
   if (!rclaudeSecret) rclaudeSecret = process.env.CLAUDWERK_SECRET ?? process.env.RCLAUDE_SECRET
+  // rp-id / origin fall back to env when the flags aren't passed (the flag still
+  // wins). This lets env-only providers (a Launchfile deploy that injects RP_ID /
+  // ORIGIN via env_file, rather than the compose's `--rp-id`/`--origin` args)
+  // configure WebAuthn + the Web-Push VAPID subject. ORIGIN may be comma-separated.
+  if (!rpId) rpId = process.env.RP_ID
+  if (origins.length === 0 && process.env.ORIGIN) {
+    origins.push(...process.env.ORIGIN.split(",").map(s => s.trim()).filter(Boolean))
+  }
   const vapidPublicKey = process.env.VAPID_PUBLIC_KEY
   const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY
 
